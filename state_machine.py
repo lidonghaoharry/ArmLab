@@ -109,6 +109,11 @@ class StateMachine():
               Make sure you respect estop signal
         """
         self.status_message = "State: Execute - Executing motion plan"
+
+        for i,waypoint in enumerate(self.waypoints):
+            self.rxarm.set_positions(waypoint)
+            rospy.sleep(5)
+
         self.next_state = "idle"
 
     def calibrate(self):
