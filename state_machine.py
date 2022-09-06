@@ -124,6 +124,7 @@ class StateMachine():
         self.next_state = "idle"
 
         """TODO Perform camera calibration routine here"""
+        self.camera.auto_calibrate()
         self.status_message = "Calibration - Completed Calibration"
 
     """ TODO """

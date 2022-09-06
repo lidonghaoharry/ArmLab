@@ -21,6 +21,8 @@ from ui import Ui_MainWindow
 from rxarm import RXArm, RXArmThread
 from camera import Camera, VideoThread
 from state_machine import StateMachine, StateMachineThread
+
+from sensor_msgs.msg import CameraInfo
 """ Radians to/from  Degrees conversions """
 D2R = np.pi / 180.0
 R2D = 180.0 / np.pi
@@ -33,6 +35,7 @@ class Gui(QMainWindow):
     Contains the main function and interfaces between the GUI and functions.
     """
     def __init__(self, parent=None, dh_config_file=None):
+
         QWidget.__init__(self, parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -123,6 +126,10 @@ class Gui(QMainWindow):
         self.ArmThread.updateEndEffectorReadout.connect(
             self.updateEndEffectorReadout)
         self.ArmThread.start()
+
+        self.K_sub = None
+        self.K_sub = rospy.Subscriber('camera/color/camera_info', CameraInfo, self.K_matrix_callback)
+        self.K = None
 
     """ Slots attach callback functions to signals emitted from threads"""
 
@@ -222,7 +229,10 @@ class Gui(QMainWindow):
             z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
             self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
                                              (pt.x(), pt.y(), z))
-            self.ui.rdoutMouseWorld.setText("(-,-,-)")
+
+            X_w = self.camera.rough_extrinsic(z, np.array([pt.x(), pt.y(), 1]))
+            
+            self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" % (X_w[0], X_w[1], X_w[2]))
 
     def calibrateMousePress(self, mouse_event):
         """!
@@ -245,6 +255,10 @@ class Gui(QMainWindow):
         self.ui.chk_directcontrol.setChecked(False)
         self.rxarm.enable_torque()
         self.sm.set_next_state('initialize_rxarm')
+
+    def K_matrix_callback(self, msg):
+        self.K = np.array(msg.K).reshape((3,3))
+
 
 
 ### TODO: Add ability to parse POX config file as well

@@ -24,6 +24,10 @@ class Camera():
         """!
         @brief      Construcfalsets a new instance.
         """
+        # for checkpoint 1 part 2
+        self.rough_Hinv = np.linalg.inv(np.array([[-1, 0, 0, 5], [0, 1, 0, -175], [0, 0, -1, 970], [0, 0, 0, 1]]))
+
+
         self.VideoFrame = np.zeros((720, 1280, 3)).astype(np.uint8)
         self.TagImageFrame = np.zeros((720, 1280, 3)).astype(np.uint8)
         self.DepthFrameRaw = np.zeros((720, 1280)).astype(np.uint16)
@@ -40,7 +44,7 @@ class Camera():
         self.rgb_click_points = np.zeros((5, 2), int)
         self.depth_click_points = np.zeros((5, 2), int)
         self.tag_detections = np.array([])
-        self.tag_locations = [[-250, -25], [250, -25], [250, 275]]
+        self.tag_locations = [[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]
         """ block info """
         self.block_contours = np.array([])
         self.block_detections = np.array([])
@@ -161,6 +165,27 @@ class Camera():
         """
         pass
 
+    def rough_extrinsic(self, z, uv_cam):
+        X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
+        X_c = np.append(X_c, 1)
+        X_w = np.matmul(self.rough_Hinv, X_c)
+
+        return X_w
+
+    def auto_calibrate(self):
+        print(np.array(self.tag_locations))
+        print(self.tag_detections * 1000)
+
+        
+
+        # retval, rvec, tvec = cv2.solvePnP(np.array(self.tag_locations), self.tag_detections, self.intrinsic_matrix, None)
+        # print(retval)
+        # print(rvec)
+        # print(tvec)
+        # _, R, t = cv2.estimateAffine3D(np.array(self.tag_locations), self.tag_detections * 1000, 1, True)
+        # print(R)
+        # print(t)
+
 
 class ImageListener:
     def __init__(self, topic, camera):
@@ -203,9 +228,20 @@ class TagDetectionListener:
 
     def callback(self, data):
         self.camera.tag_detections = data
-        #for detection in data.detections:
-        #print(detection.id[0])
-        #print(detection.pose.pose.pose.position)
+        det_map = {}        
+        for detection in data.detections:
+            id = detection.id[0]
+            p = detection.pose.pose.pose.position
+
+            # add to map for easy loc assignment
+            det_map[id] = [p.x, p.y, p.z]
+
+        d = np.zeros((4, 3))
+        for id in det_map:
+            # print(det_map[id])
+            d[id - 1] = np.array(det_map[id])
+
+        self.camera.tag_detections = d
 
 
 class CameraInfoListener:
