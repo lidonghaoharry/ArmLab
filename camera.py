@@ -26,7 +26,7 @@ class Camera():
         """
         # for checkpoint 1 part 2
         self.rough_Hinv = np.linalg.inv(np.array([[-1, 0, 0, 5], [0, 1, 0, -175], [0, 0, -1, 970], [0, 0, 0, 1]]))
-
+        self.auto_Hinv = None
 
         self.VideoFrame = np.zeros((720, 1280, 3)).astype(np.uint8)
         self.TagImageFrame = np.zeros((720, 1280, 3)).astype(np.uint8)
@@ -44,7 +44,7 @@ class Camera():
         self.rgb_click_points = np.zeros((5, 2), int)
         self.depth_click_points = np.zeros((5, 2), int)
         self.tag_detections = np.array([])
-        self.tag_locations = [[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]
+        self.tag_locations = np.array([[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]).T
         """ block info """
         self.block_contours = np.array([])
         self.block_detections = np.array([])
@@ -165,26 +165,44 @@ class Camera():
         """
         pass
 
-    def rough_extrinsic(self, z, uv_cam):
+    def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
         X_c = np.append(X_c, 1)
-        X_w = np.matmul(self.rough_Hinv, X_c)
+        if self.auto_Hinv is None:
+            X_w = np.matmul(self.rough_Hinv, X_c)
+        else:
+            X_w = np.matmul(self.auto_Hinv, X_c)
 
         return X_w
 
     def auto_calibrate(self):
-        print(np.array(self.tag_locations))
-        print(self.tag_detections * 1000)
+        self.tag_detections = self.tag_detections.T * 1000
 
+        # Kabsch algorithm wikipedia.org/wiki/Kabsh_algorithm
+        locations_centroid = np.mean(self.tag_locations, axis=1).reshape(-1,1)
+        detections_centroid = np.mean(self.tag_detections, axis=1).reshape(-1,1)
+
+        H = np.matmul((self.tag_detections - detections_centroid), np.transpose(self.tag_locations - locations_centroid))
+
+        [U, _, V_t] = np.linalg.svd(H)
+
+        R = np.matmul(V_t.T,U.T)
+        print(R)
+        if np.linalg.det(R) < 0:
+            [U,_,V_t] = np.linalg.svd(R)
+            V_t.T[:,2] *= -1
+            R = np.matmul(V_t.T, U.T)
+
+        # t = detections_centroid - np.matmul(R, locations_centroid)
+        t = locations_centroid - np.matmul(R, detections_centroid)
+        self.auto_Hinv = np.vstack((np.hstack((R,t.reshape((3,1)))), [0,0,0,1]))
+
+        print(self.tag_detections, detections_centroid)
+        print(self.tag_locations, locations_centroid)
+
+        print(self.auto_Hinv)
+        print(self.rough_Hinv)
         
-
-        # retval, rvec, tvec = cv2.solvePnP(np.array(self.tag_locations), self.tag_detections, self.intrinsic_matrix, None)
-        # print(retval)
-        # print(rvec)
-        # print(tvec)
-        # _, R, t = cv2.estimateAffine3D(np.array(self.tag_locations), self.tag_detections * 1000, 1, True)
-        # print(R)
-        # print(t)
 
 
 class ImageListener:

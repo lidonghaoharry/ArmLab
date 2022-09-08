@@ -100,6 +100,15 @@ class Gui(QMainWindow):
         self.ui.btnUser4.setText('Execute')
         self.ui.btnUser4.clicked.connect(partial(nxt_if_arm_init, 'execute'))
 
+        self.ui.btnUser5.setText("Init Teach and Repeat")
+        self.ui.btnUser5.clicked.connect(partial(nxt_if_arm_init, 'teach'))
+        self.ui.btnUser6.setText("Record Waypoint")
+        self.ui.btnUser6.clicked.connect(self.sm.record_position)
+        self.ui.btnUser7.setText("Stop Recording")
+        self.ui.btnUser7.clicked.connect(self.sm.stop_teaching)
+        self.ui.btnUser8.setText("Replay Waypoints")
+        self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'replay'))
+
         # Sliders
         for sldr in self.joint_sliders:
             sldr.valueChanged.connect(self.sliderChange)
@@ -230,7 +239,7 @@ class Gui(QMainWindow):
             self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
                                              (pt.x(), pt.y(), z))
 
-            X_w = self.camera.rough_extrinsic(z, np.array([pt.x(), pt.y(), 1]))
+            X_w = self.camera.to_world_coords(z, np.array([pt.x(), pt.y(), 1]))
             
             self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" % (X_w[0], X_w[1], X_w[2]))
 

@@ -127,6 +127,14 @@ class RXArm(InterbotixRobot):
                               blocking=False)
         self.initialized = False
 
+    def open_gripper(self, delay=1):
+        self.gripper_state = True 
+        return super().open_gripper(delay)
+
+    def close_gripper(self, delay=1):
+        self.gripper_state = False
+        return super().close_gripper(delay)
+
     def set_positions(self, joint_positions):
         """!
          @brief      Sets the positions.
@@ -155,6 +163,12 @@ class RXArm(InterbotixRobot):
         @brief      Disables the torque and estops.
         """
         self.torque_joints_on(self.joint_names)
+
+    def enable_torque_gripper(self):
+        self.torque_joints_on('gripper')
+
+    def disable_torque_gripper(self):
+        self.torque_joints_off('gripper')
 
     def get_positions(self):
         """!

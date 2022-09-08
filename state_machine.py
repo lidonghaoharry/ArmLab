@@ -37,6 +37,7 @@ class StateMachine():
             [0.75*np.pi/2,   -0.5,     -0.3,     0.0,       np.pi/2],
             [np.pi/2,         0.5,     0.3,      0.0,     0.0],
             [0.0,             0.0,     0.0,      0.0,     0.0]]
+        self.recorded_positions = []
 
     def set_next_state(self, state):
         """!
@@ -76,6 +77,12 @@ class StateMachine():
 
         if self.next_state == "manual":
             self.manual()
+        
+        if self.next_state == "teach":
+            self.teach()
+        
+        if self.next_state == "replay":
+            self.replay_waypoints()
 
 
     """Functions run for each state"""
@@ -126,6 +133,49 @@ class StateMachine():
         """TODO Perform camera calibration routine here"""
         self.camera.auto_calibrate()
         self.status_message = "Calibration - Completed Calibration"
+
+    def replay_waypoints(self):
+        self.current_state = "replay"
+        for i,waypoint in enumerate(self.recorded_positions):
+            arm_pose, gripper_state = waypoint
+
+            # move arm 
+            self.rxarm.set_positions(arm_pose)
+            rospy.sleep(5)
+
+            # open/close gripper
+            if gripper_state == True:
+                self.rxarm.open_gripper()
+            else:
+                self.rxarm.close_gripper()
+            rospy.sleep(5)
+
+
+        self.next_state = "idle"
+
+    def teach(self):
+        '''teach and repeat state'''
+        if self.current_state != "teach":
+            self.recorded_positions = []
+        self.current_state = "teach"
+        self.next_state = "teach"
+
+        # disable torque for everything besides the gripper 
+        self.rxarm.disable_torque()
+        # self.rxarm.enable_torque_gripper()
+
+        self.status_message = "Teach Mode"
+
+    def stop_teaching(self):
+        self.next_state = "idle"
+
+    def record_position(self):
+        if self.current_state == "teach":
+            self.recorded_positions.append((self.rxarm.get_positions(), self.rxarm.gripper_state))
+            print(self.recorded_positions)
+            self.status_message = "recorded position: " + str(len(self.recorded_positions))
+
+
 
     """ TODO """
     def detect(self):
