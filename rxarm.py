@@ -81,9 +81,12 @@ class RXArm(InterbotixRobot):
         self.dh_config_file = dh_config_file
         if (dh_config_file is not None):
             self.dh_params = RXArm.parse_dh_param_file(dh_config_file)
-        #POX params
+        # POX params
         self.M_matrix = []
         self.S_list = []
+
+        # max speed (arbitrarily set atm) radians/sec
+        self.max_speed = 0.75
 
     def initialize(self):
         """!
@@ -141,10 +144,13 @@ class RXArm(InterbotixRobot):
 
          @param      joint_angles  The joint angles
          """
+
+         #To Do
         self.set_joint_positions(joint_positions,
                                  moving_time=self.moving_time,
                                  accel_time=self.accel_time,
                                  blocking=False)
+
 
     def set_moving_time(self, moving_time):
         self.moving_time = moving_time

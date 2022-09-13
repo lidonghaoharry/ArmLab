@@ -39,6 +39,9 @@ class StateMachine():
             [0.0,             0.0,     0.0,      0.0,     0.0]]
         self.recorded_positions = []
 
+        # hyperparam 
+        self.wait_time = 0.5
+
     def set_next_state(self, state):
         """!
         @brief      Sets the next state.
@@ -136,22 +139,36 @@ class StateMachine():
 
     def replay_waypoints(self):
         self.current_state = "replay"
+
         for i,waypoint in enumerate(self.recorded_positions):
             arm_pose, gripper_state = waypoint
 
+            self.rxarm.moving_time = self.calc_time(self.rxarm.get_positions(), arm_pose)
+
             # move arm 
             self.rxarm.set_positions(arm_pose)
-            rospy.sleep(5)
+            rospy.sleep(self.rxarm.moving_time + self.wait_time)
 
             # open/close gripper
             if gripper_state == True:
                 self.rxarm.open_gripper()
+                rospy.sleep(self.wait_time)
             else:
                 self.rxarm.close_gripper()
-            rospy.sleep(5)
+                rospy.sleep(self.wait_time)
+            
 
 
         self.next_state = "idle"
+
+    def calc_time(self, curr_pose, pose):
+        print("curr pose: " + str(curr_pose))
+        print("waypoint: " + str(pose))
+
+        d = np.abs(np.array(curr_pose) - np.array(pose))
+        m = np.max(d)
+    
+        return m / self.rxarm.max_speed
 
     def teach(self):
         '''teach and repeat state'''

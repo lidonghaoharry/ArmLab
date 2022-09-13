@@ -177,6 +177,18 @@ class Camera():
 
     def auto_calibrate(self):
         self.tag_detections = self.tag_detections.T * 1000
+        projection = np.hstack((np.eye(3), np.zeros([3,1])))
+        
+        h_detections = np.vstack((self.tag_detections, np.ones((1,4))))
+        tag_pixel_detections = np.matmul(np.matmul(self.intrinsic_matrix, projection), h_detections)
+        tag_pixel_detections = tag_pixel_detections/self.tag_detections[2,:]
+
+
+        for i in range(tag_pixel_detections.shape[1]):
+            #correct tag_detections depth
+            d = self.DepthFrameRaw[int(tag_pixel_detections[1,i]), int(tag_pixel_detections[0,i])]
+            self.tag_detections[2,i] = d
+
 
         # Kabsch algorithm wikipedia.org/wiki/Kabsh_algorithm
         locations_centroid = np.mean(self.tag_locations, axis=1).reshape(-1,1)
@@ -186,22 +198,22 @@ class Camera():
 
         [U, _, V_t] = np.linalg.svd(H)
 
-        R = np.matmul(V_t.T,U.T)
-        print(R)
+        R = np.matmul(V_t,U.T)
+        # print(R)
         if np.linalg.det(R) < 0:
-            [U,_,V_t] = np.linalg.svd(R)
             V_t.T[:,2] *= -1
-            R = np.matmul(V_t.T, U.T)
+            R = np.matmul(V_t, U.T)
+        print(R)
 
         # t = detections_centroid - np.matmul(R, locations_centroid)
         t = locations_centroid - np.matmul(R, detections_centroid)
         self.auto_Hinv = np.vstack((np.hstack((R,t.reshape((3,1)))), [0,0,0,1]))
 
-        print(self.tag_detections, detections_centroid)
-        print(self.tag_locations, locations_centroid)
+        # print(self.tag_detections, detections_centroid)
+        # print(self.tag_locations, locations_centroid)
 
-        print(self.auto_Hinv)
-        print(self.rough_Hinv)
+        # print(self.auto_Hinv)
+        # print(self.rough_Hinv)
         
 
 
