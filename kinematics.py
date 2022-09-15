@@ -44,7 +44,19 @@ def FK_dh(dh_params, joint_angles, link):
 
     @return     a transformation matrix representing the pose of the desired link
     """
-    pass
+    T = np.eye(4)
+
+    joint_angles[0] += np.pi/2
+    joint_angles[1] += np.atan2(200,50)
+    joint_angles[2] -= np.atan2(200,50)
+    joint_angles[3] += np.pi/2
+
+
+    for i in range(0,link-1):
+        Ti = get_transform_from_dh(dh_params[i][0], dh_params[i][1], dh_params[i][2], joint_angles)
+        T = np.matmul(T,Ti)
+
+    return T
 
 
 def get_transform_from_dh(a, alpha, d, theta):
@@ -60,6 +72,12 @@ def get_transform_from_dh(a, alpha, d, theta):
 
     @return     The 4x4 transform matrix.
     """
+    
+    T = np.array([[np.cos(theta),       -np.sin(theta)*np.cos(alpha),       np.sin(theta)*np.sin(alpha),        a*np.cos(theta)],
+                  [np.sin(theta),       np.cos(theta)*np.cos(alpha),        -np.cos(theta)*np.sin(alpha),       a*np.sin(theta)],
+                  [0,                   np.sin(alpha),                      np.cos(alpha),                      d],
+                  [0                    0                                   0                                   1]])
+    
     pass
 
 
