@@ -164,6 +164,21 @@ class Camera():
                     TODO: Implement a blob detector to find blocks in the depth image
         """
         pass
+        # print("detecting blocks!")
+        # print(self.DepthFrameHSV.shape)
+        # # print(self.DepthFrameRaw)
+        # # cv2.imwrite("depth_img.jpg", self.DepthFrameRaw)
+        # print(self.DepthFrameRGB.shape)
+
+        # mask = np.zeros_like(depth_data, dtype=np.uint8)
+        # cv2.rectangle(mask, (275,120),(1100,720), 255, cv2.FILLED)
+        # cv2.rectangle(mask, (575,414),(723,720), 0, cv2.FILLED)
+
+        # thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
+        # # depending on your version of OpenCV, the following line could be:
+        # # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # _, contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
 
     def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
@@ -301,6 +316,9 @@ class DepthListener:
         self.camera.DepthFrameRaw = cv_depth
         #self.camera.DepthFrameRaw = self.camera.DepthFrameRaw/2
         self.camera.ColorizeDepthFrame()
+
+        # update block detections from depth frame 
+        self.camera.detectBlocksInDepthImage()
 
 
 class VideoThread(QThread):
