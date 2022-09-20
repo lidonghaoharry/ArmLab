@@ -46,16 +46,16 @@ def FK_dh(dh_params, joint_angles, link):
     @return     a transformation matrix representing the pose of the desired link
     """
     T = np.eye(4)
-
-    joint_angles[0] += np.pi/2
-    joint_angles[1] += np.arctan2(200,50)
-    joint_angles[2] -= np.arctan2(200,50)
-    joint_angles[3] += np.pi/2
+    theta = np.copy(joint_angles)
+    theta[0] += np.pi/2
+    theta[1] += np.arctan2(200,50)
+    theta[2] -= np.arctan2(200,50)
+    theta[3] += np.pi/2
 
 
     for i in range(0,link):
 
-        Ti = get_transform_from_dh(dh_params[i][0], dh_params[i][1], dh_params[i][2], joint_angles[i])
+        Ti = get_transform_from_dh(dh_params[i][0], dh_params[i][1], dh_params[i][2], theta[i])
         T = np.matmul(T,Ti)
 
     return T
@@ -125,7 +125,15 @@ def FK_pox(joint_angles, m_mat, s_lst):
 
     @return     a 4-tuple (x, y, z, phi) representing the pose of the desired link
     """
-    pass
+    T = np.eye(4)
+    for i in range(len(joint_angles)):
+        w = s_lst[i][:3]
+        v = s_lst[i][3:]
+        s_mat = to_s_matrix(w,v)
+        e_s = expm(s_mat*joint_angles[i])
+        T = np.matmul(T,e_s)
+    T = np.matmul(T,m_mat)
+    return T
 
 
 def to_s_matrix(w, v):
@@ -140,7 +148,16 @@ def to_s_matrix(w, v):
 
     @return     { description_of_the_return_value }
     """
-    pass
+    S = np.zeros((4,4))
+    S[:3,:3] = to_skew_symetric(w)
+    S[:3,3] = v
+    return S
+
+def to_skew_symetric(x):
+    m = np.array([[0, -x[2], x[1]],
+                  [x[2], 0, -x[0]],
+                  [-x[1], x[0], 0]])
+    return m
 
 def inv_transform(T):
     rotM = T[:3,:3]
@@ -181,7 +198,6 @@ def IK_geometric(dh_params, pose):
 
         p3_0 = np.append(p3_0,1)
         p3_1 = np.matmul(T01,p3_0)
-        print(p3_1)
 
         a2 = dh_params[1][0]
         a3 = dh_params[2][0]
