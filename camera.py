@@ -49,6 +49,13 @@ class Camera():
         self.block_contours = np.array([])
         self.block_detections = np.array([])
 
+        # image for template matching
+        self.template_img = cv2.imread("template.png", 0)
+
+        # workspace boundary for drawing 
+        self.top_left = None 
+        self.bottom_right = None
+
     def processVideoFrame(self):
         """!
         @brief      Process a video frame
@@ -157,27 +164,60 @@ class Camera():
         """
         pass
 
+    def detect_workspace_boundary(self):
+        """
+        Use template matching to automatically detect workspace boundary
+        """
+        w, h = self.template_img.shape[::-1]
+
+        video_gray = cv2.cvtColor(self.VideoFrame, cv2.COLOR_BGR2GRAY)
+
+        res = cv2.matchTemplate(video_gray, self.template_img, cv2.TM_CCOEFF_NORMED)
+
+        threshold = 0.8
+        rows, cols = np.where( res >= threshold)
+
+        top_left = (cols.min() - w/2, rows.min() - h/2)
+        bottom_right = (cols.max() + w, rows.max() + h)
+
+        return top_left, bottom_right
+        
+
     def detectBlocksInDepthImage(self):
         """!
         @brief      Detect blocks from depth
 
                     TODO: Implement a blob detector to find blocks in the depth image
         """
-        pass
-        # print("detecting blocks!")
+        lower = 10 
+        upper = 250
+
+        if self.top_left is None or self.bottom_right is None:
+            # ideally this should automatically get the workspace boundary
+            self.top_left, self.bottom_right = self.detect_workspace_boundary()
+
+        # draw workspace boundary
+        cv2.rectangle(self.VideoFrame, self.top_left, self.bottom_right, 255, 2)
+
         # print(self.DepthFrameHSV.shape)
-        # # print(self.DepthFrameRaw)
-        # # cv2.imwrite("depth_img.jpg", self.DepthFrameRaw)
+        # print(self.DepthFrameRaw.shape)
+        # cv2.imwrite("depth_img.jpg", self.DepthFrameRaw)
         # print(self.DepthFrameRGB.shape)
 
-        # mask = np.zeros_like(depth_data, dtype=np.uint8)
-        # cv2.rectangle(mask, (275,120),(1100,720), 255, cv2.FILLED)
-        # cv2.rectangle(mask, (575,414),(723,720), 0, cv2.FILLED)
+        mask = np.zeros_like(self.DepthFrameRaw, dtype=np.uint8)
+        # cv2.rectangle(self.VideoFrame, (275,120),(1100,720), (255, 0, 0), 2)
+        # cv2.rectangle(self.VideoFrame, (575,414),(723,720), (0, 255, 0), 2)
 
-        # thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
-        # # depending on your version of OpenCV, the following line could be:
-        # # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # thresh = cv2.bitwise_and(cv2.inRange(self.DepthFrameRaw, lower, upper), mask)
+        # depending on your version of OpenCV, the following line could be:
+        # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # _, contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # print("detected contours: " + str(contours))
+        # cv2.rectangle(self.VideoFrame, (50, 50), (150, 150), (255, 0, 0), 2)
+        # cv2.drawContours(self.VideoFrame, contours, -1, (0,255,255), thickness=1)
+        # self.VideoFrame = np.zeros((720, 1280, 3)).astype(np.uint8)
+
 
 
     def to_world_coords(self, z, uv_cam):
@@ -259,6 +299,7 @@ class TagImageListener:
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, data.encoding)
             #cv_image = cv2.rotate(cv_image, cv2.ROTATE_180)
+            # cv_image = np.zeros((720, 1280, 3)).astype(np.uint8)
         except CvBridgeError as e:
             print(e)
         self.camera.TagImageFrame = cv_image
