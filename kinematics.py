@@ -8,7 +8,7 @@ There are some functions to start with, you may need to implement a few more
 import numpy as np
 # expm is a matrix exponential function
 from scipy.linalg import expm
-from sc
+# from sc
 
 
 def clamp(angle):
