@@ -180,7 +180,7 @@ def IK_geometric(dh_params, pose):
                 configuration
     """
     T50 = pose
-    theta = np.zeros((5,8))
+    theta = np.zeros((5,4))
     for i in range(8):
         # theta 1
         p3_0 = T50[:3,3] - T50[:3,2]*dh_params[4][2]
@@ -190,8 +190,8 @@ def IK_geometric(dh_params, pose):
         theta[0,i] = np.arctan2(s1,c1)
 
         # theta 3
-        T10 = np.array([[np.cos(theta[0,i]), 0, np.sin(theta[0,i]), 0],
-                        [np.sin(theta[0,i]), 0, -np.cos(theta[0,i]), 0],
+        T10 = np.array([[c1, 0, s1, 0],
+                        [s1, 0, -c1, 0],
                         [0,1,0,dh_params[0][2]],
                         [0,0,0,1]])
         T01 = inv_transform(T10)
@@ -213,14 +213,14 @@ def IK_geometric(dh_params, pose):
         T30 = np.zeros((4,4))
         c23 = np.cos(theta[1,i]+theta[2,i])
         s23 = np.sin(theta[1,i]+theta[2,i])
-        T30[0,0] = c23*np.cos(theta[0,i])
-        T30[0,1] = -s23*np.cos(theta[0,i])
-        T30[0,2] = np.sin(theta[0,i])
-        T30[0,3] = np.cos(theta[0,i]) * (a3*c23 + a2*np.cos(theta[1,i]))
-        T30[1,0] = c23*np.sin(theta[0,i])
-        T30[1,1] = -s23*np.sin(theta[0,i])
-        T30[1,2] = -np.cos(theta[0,i])
-        T30[1,3] = np.sin(theta[0,i]) * (a3*c23 + a2*np.cos(theta[1,i]))
+        T30[0,0] = c23*c1
+        T30[0,1] = -s23*c1
+        T30[0,2] = s1
+        T30[0,3] = c1 * (a3*c23 + a2*np.cos(theta[1,i]))
+        T30[1,0] = c23*s1
+        T30[1,1] = -s23*s1
+        T30[1,2] = -c1
+        T30[1,3] = s1 * (a3*c23 + a2*np.cos(theta[1,i]))
         T30[2,0] = s23
         T30[2,1] = c23
         T30[2,3] = dh_params[0,2]+a3*s23+a2*np.sin(theta[1,i])
@@ -239,3 +239,57 @@ def IK_geometric(dh_params, pose):
         theta[3,i] -= np.pi/2
         
     return theta
+
+    def IK_6dof(dh_params, pose):
+        T60 = pose
+        theta = np.zeros((5,4))
+        for i in range(8):
+            p4_0 = T60[:3,3] - T60[:3,2]*dh_params[5][2]
+            c1 = p4_0[0]/np.linalg.norm(p4_0[:2])
+            s1 = p4_0[1]/np.linalg.norm(p4_0[:2])
+            s1 *= (-1)**((i & 0x04) >> 2) # pattern is ++++----
+            theta[0,i] = np.arctan2(s1,c1)
+            
+            # theta 3
+            T10 = np.array([[c1, 0, s1, 0],
+                            [s1, 0, -c1, 0],
+                            [0,1,0,dh_params[0][2]],
+                            [0,0,0,1]])
+            T01 = inv_transform(T10)
+
+            p4_0 = np.append(p4_0,1)
+            p4_1 = np.matmul(T01,p4_0)
+
+            a2 = dh_params[1][0]
+            d4 = dh_params[3][2]
+            c3 = (p4_1[0]**2 + p4_1[1]**2 - a2**2 - d4**2)/(2*a2*d4)
+            s3 = np.sqrt(1-c3**2)
+            s3 *= (-1)**((i & 0x02) >> 1) # pattern is ++--++--
+            theta[2,i] = -np.arctan2(s3,c3)
+
+            #theta 2
+            theta[1,i] = np.arctan2(p3_1[1],p3_1[0]) - np.arctan2(a3*np.sin(theta[2,i]), a2+a3*np.cos(theta[2,i]))
+            R30 = np.zeros(3)
+            c23 = np.cos(theta[1,i]+theta[2,i])
+            s23 = np.sin(theta[1,i]+theta[2,i])
+            R30[0,0] = c23*c1
+            R30[0,1] = s1
+            R30[0,2] = s23*c1
+            R30[1,0] = c23*s1
+            R30[1,1] = -c1
+            R30[1,2] = s23*s1
+            R30[2,0] = s23
+            R30[2,2] = -c23
+
+            R63 = np.matmul(R30.T, T60[:3,:3])
+            c5 = R63[2,2]
+            s5 = np.sqrt(1-c5**2)
+            s5 *= (-1)**((i & 0x01)) # pattern is +-+-+-
+            theta[4,i] = np.arctan2(s5, c5)
+
+            theta[3,i] = np.arctan2(R63[1,2]/s5, R63[0,2]/s5)
+            theta[5,i] = np.arctan2(R63[2,1]/s5, -R63[2,0]/s5)
+
+            # Need to add offsets here
+
+        return theta
