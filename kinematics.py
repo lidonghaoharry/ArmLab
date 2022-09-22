@@ -186,13 +186,15 @@ def IK_geometric(dh_params, pose):
     """
     T50 = pose
     theta = np.zeros((5,4))
-    for i in range(8):
+    for i in range(4):
         # theta 1
         p3_0 = T50[:3,3] - T50[:3,2]*dh_params[4][2]
-        c1 = p3_0[0]/np.linalg.norm(p3_0[:2])
-        s1 = p3_0[1]/np.linalg.norm(p3_0[:2])
-        s1 *= (-1)**((i & 0x02) >> 1) # pattern is ++--
-        theta[0,i] = np.arctan2(s1,c1)
+        mag_p3_0 = np.linalg.norm(p3_0[:2])
+        mag_p3_0 *= (-1.0)**((i & 0x02) >> 1)
+        c1 = p3_0[0]/mag_p3_0
+        s1 = p3_0[1]/mag_p3_0
+
+        theta[0,i] = np.arctan2(s1,c1) # pattern is ++++---
 
         # theta 3
         T10 = np.array([[c1, 0, s1, 0],
@@ -242,6 +244,8 @@ def IK_geometric(dh_params, pose):
         theta[1,i] -= np.arctan2(200,50)
         theta[2,i] += np.arctan2(200,50)
         theta[3,i] -= np.pi/2
+
+        theta = ((theta + np.pi) % (2*np.pi)) - np.pi # constrain to [-pi,pi]
         
     return theta
 
@@ -250,9 +254,11 @@ def IK_6dof(dh_params, pose):
     theta = np.zeros((6,8))
     for i in range(8):
         p4_0 = T60[:3,3] - T60[:3,2]*dh_params[5][2]
-        c1 = p4_0[0]/np.linalg.norm(p4_0[:2])
-        s1 = p4_0[1]/np.linalg.norm(p4_0[:2])
-        theta[0,i] = np.arctan2(s1,c1) + np.pi*((i & 0x04) >> 2) # pattern is ++++----
+        mag_p4_0 = np.linalg.norm(p4_0[:2])
+        mag_p4_0 *= (-1)**((i & 0x04) >> 2) # pattern is ++++----
+        c1 = p4_0[0]/mag_p4_0
+        s1 = p4_0[1]/mag_p4_0
+        theta[0,i] = np.arctan2(s1,c1)
         
         # theta 3
         T10 = np.array([[c1, 0, s1, 0],
@@ -272,10 +278,13 @@ def IK_6dof(dh_params, pose):
         theta[2,i] = np.pi/2 - np.arctan2(s3,c3)
 
         #theta 2
-        A = np.array([[d4*s3+a2, d4*c3],
-                      [-d4*c3, d4*s3+a2]])
-        vec = np.linalg.solve(A,p4_1[:2])
-        theta[1,i] = np.arctan2(vec[1], vec[2])
+        c3 = np.cos(theta[2,i])
+        s3 = np.sin(theta[2,i])
+        A = np.array([[d4*s3 + a2, d4*c3],
+                      [-d4*c3, d4*s3 + a2]])
+        vec = np.linalg.solve(A, p4_1[:2])
+        theta[1,i] = np.arctan2(vec[1], vec[0])
+
         # beta = -np.pi/2 + theta[2,i]
         # print(beta)
         # theta[1,i] = np.arctan2(p4_1[1],p4_1[0]) - np.arctan2(d4*np.sin(beta), a2+d4*np.cos(beta))
@@ -305,5 +314,7 @@ def IK_6dof(dh_params, pose):
         theta[0,i] -= np.pi/2
         theta[1,i] -= np.arctan2(200,50)
         theta[2,i] -= np.arctan2(50,200)
+
+        theta = ((theta + np.pi) % (2*np.pi)) - np.pi # constrain to [-pi,pi]
 
     return theta
