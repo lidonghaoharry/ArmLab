@@ -55,6 +55,53 @@ class Camera():
         # workspace boundary for drawing 
         self.top_left = None 
         self.bottom_right = None
+        self.arm_top_left = None 
+        self.arm_top_right = None
+
+        # RGB colors
+        self.colors = list((
+            {'id': 'red', 'color': (255, 0, 0)},
+            {'id': 'orange', 'color': (255,69,0)},
+            {'id': 'yellow', 'color': (204,204,0)},
+            {'id': 'green', 'color': (0, 255, 0)},
+            {'id': 'blue', 'color': (0,0,255)},
+            {'id': 'violet', 'color': (148,0,211)},
+            {'id': 'pink', 'color': (255,20,147)}))
+
+        # self.colors = list((
+        #             {'id': 'red', 'color': [[[255, 0, 0]]]},
+        #             {'id': 'orange', 'color': [[[255,165,0]]]},
+        #             {'id': 'yellow', 'color': [[[204,204,0]]]},
+        #             {'id': 'green', 'color': [[[0, 255, 0]]]},
+        #             {'id': 'blue', 'color': [[[0,0,255]]]},
+        #             {'id': 'violet', 'color': [[[148,0,211]]]},
+        #             {'id': 'pink', 'color': [[[255,20,147]]]},
+        #             {'id': 'black', 'color': [[[255,255,255]]]}))
+
+        # HSV color
+        # self.colors = list((
+        #     {'id': 'red', 'color': (0, 100, 100)},
+        #     {'id': 'orange', 'color': (39, 100, 100)},
+        #     {'id': 'yellow', 'color': (60, 100, 80)},
+        #     {'id': 'green', 'color': (120, 100, 100)},
+        #     {'id': 'blue', 'color': (240, 100, 100)},
+        #     {'id': 'violet', 'color': (282, 100, 82.7)})
+        # )
+        # HSV color
+        # self.colors = list((
+        #     {'id': 'red', 'color': (0, 100, 100)},
+        #     {'id': 'red', 'color': (170, 100, 100)},
+        #     {'id': 'orange', 'color': (20, 100, 100)},
+        #     {'id': 'yellow', 'color': (30, 100, 80)},
+        #     {'id': 'green', 'color': (60, 100, 100)},
+        #     {'id': 'blue', 'color': (120, 100, 100)},
+        #     {'id': 'violet', 'color': (140, 100, 82.7)})
+        #     {'id': 'violet', 'color': (150, 255, 255)})
+        # )
+            
+
+        self.font = cv2.FONT_HERSHEY_SIMPLEX
+
 
     def processVideoFrame(self):
         """!
@@ -174,14 +221,37 @@ class Camera():
 
         res = cv2.matchTemplate(video_gray, self.template_img, cv2.TM_CCOEFF_NORMED)
 
-        threshold = 0.8
+        threshold = 0.9
         rows, cols = np.where( res >= threshold)
 
-        top_left = (cols.min() - w/2, rows.min() - h/2)
-        bottom_right = (cols.max() + w, rows.max() + h)
+        # calc workspace bounding box
+        top_left = (cols.min() - w/2 + 50, rows.min() - h/2 + 50)
+        bottom_right = (cols.max() + w - 25, rows.max() + h - 25)
 
-        return top_left, bottom_right
+        # calc location of arm
+        middle_top = (np.abs(top_left[0] - bottom_right[0]) // 2, top_left[1])
+        arm_top_left = (middle_top[0] + top_left[0] - 75, middle_top[1])
+        arm_bottom_right = (middle_top[0] + top_left[0] + 75, top_left[1] + 325)
+
+        return top_left, bottom_right, arm_top_left, arm_bottom_right
         
+    
+    def retrieve_area_color(self, data, contour, labels):
+        mask = np.zeros(data.shape[:2], dtype="uint8")
+        cv2.drawContours(mask, [contour], -1, 255, -1)
+        mean = cv2.mean(data, mask=mask)[:3]
+        min_dist = (np.inf, None)
+        print("mean: " + str(mean))
+        for label in labels:
+            # d = np.linalg.norm(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0] - np.array(mean))
+            # print("HSV: " + str(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0]) + " d: " + str(d))
+
+            d = np.linalg.norm(label["color"] - np.array(mean))
+            print("d: " + str(d))
+            if d < min_dist[0]:
+                min_dist = (d, label["id"])
+        return min_dist[1] 
+
 
     def detectBlocksInDepthImage(self):
         """!
@@ -189,36 +259,56 @@ class Camera():
 
                     TODO: Implement a blob detector to find blocks in the depth image
         """
-        lower = 10 
-        upper = 250
+        lower = 500
+
+        if self.auto_Hinv is None:
+            upper = self.rough_Hinv[2, 3]
+        else:
+            upper = self.auto_Hinv[2, 3]
+
+        upper -= 10
 
         if self.top_left is None or self.bottom_right is None:
             # ideally this should automatically get the workspace boundary
-            self.top_left, self.bottom_right = self.detect_workspace_boundary()
+            self.top_left, self.bottom_right, self.arm_top_left, self.arm_top_right \
+                = self.detect_workspace_boundary()
 
         # draw workspace boundary
-        cv2.rectangle(self.VideoFrame, self.top_left, self.bottom_right, 255, 2)
+        cv2.rectangle(self.VideoFrame, self.top_left, self.bottom_right, (255, 0, 0), 2)
+        cv2.rectangle(self.VideoFrame, self.arm_top_left, self.arm_top_right, (255, 0, 0), 2)
 
-        # print(self.DepthFrameHSV.shape)
-        # print(self.DepthFrameRaw.shape)
-        # cv2.imwrite("depth_img.jpg", self.DepthFrameRaw)
-        # print(self.DepthFrameRGB.shape)
-
+        # mask out arm & outside board
         mask = np.zeros_like(self.DepthFrameRaw, dtype=np.uint8)
-        # cv2.rectangle(self.VideoFrame, (275,120),(1100,720), (255, 0, 0), 2)
-        # cv2.rectangle(self.VideoFrame, (575,414),(723,720), (0, 255, 0), 2)
-
-        # thresh = cv2.bitwise_and(cv2.inRange(self.DepthFrameRaw, lower, upper), mask)
+        cv2.rectangle(mask, self.top_left, self.bottom_right, 255, cv2.FILLED)
+        cv2.rectangle(mask, self.arm_top_left, self.arm_top_right, 0, cv2.FILLED)
+        thresh = cv2.bitwise_and(cv2.inRange(self.DepthFrameRaw, lower, upper), mask)
+      
         # depending on your version of OpenCV, the following line could be:
         # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # _, contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # print("detected contours: " + str(contours))
-        # cv2.rectangle(self.VideoFrame, (50, 50), (150, 150), (255, 0, 0), 2)
-        # cv2.drawContours(self.VideoFrame, contours, -1, (0,255,255), thickness=1)
-        # self.VideoFrame = np.zeros((720, 1280, 3)).astype(np.uint8)
+        _, contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 
+         # convert video frame from rgb to hsv
+        # hsvImg = cv2.cvtColor(self.VideoFrame, cv2.COLOR_BGR2HSV)
+        for contour in contours:
+            # color = self.retrieve_area_color(hsvImg, contour, self.colors)
+            color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
+
+            theta = cv2.minAreaRect(contour)[2]
+            M = cv2.moments(contour)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            cv2.putText(self.VideoFrame, color, (cx-30, cy+40), self.font, 1.0, (0,0,0), thickness=2)
+            cv2.putText(self.VideoFrame, str(int(theta)), (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+            print(color, int(theta), cx, cy)
+
+            # draw actual contour
+            cv2.drawContours(self.VideoFrame, [contour], -1, (0,255,255), thickness=1)
+
+            # draw bounding box around contour
+            rect = cv2.minAreaRect(contour)
+            points = cv2.boxPoints(rect)
+            cv2.rectangle(self.VideoFrame, (points[0, 0], points[0, 1]), (points[2, 0], points[2, 1]), (0, 255, 0), 2)
 
     def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
