@@ -272,9 +272,15 @@ def IK_6dof(dh_params, pose):
         theta[2,i] = np.pi/2 - np.arctan2(s3,c3)
 
         #theta 2
-        beta = -np.pi/2 + theta[2,i]
-        print(beta)
-        theta[1,i] = np.arctan2(p4_1[1],p4_1[0]) - np.arctan2(d4*np.sin(beta), a2+d4*np.cos(beta))
+        A = np.array([[d4*s3+a2, d4*c3],
+                      [-d4*c3, d4*s3+a2]])
+        vec = np.linalg.solve(A,p4_1[:2])
+        theta[1,i] = np.arctan2(vec[1], vec[2])
+        # beta = -np.pi/2 + theta[2,i]
+        # print(beta)
+        # theta[1,i] = np.arctan2(p4_1[1],p4_1[0]) - np.arctan2(d4*np.sin(beta), a2+d4*np.cos(beta))
+
+
         R30 = np.zeros((3,3))
         c23 = np.cos(theta[1,i]+theta[2,i])
         s23 = np.sin(theta[1,i]+theta[2,i])
