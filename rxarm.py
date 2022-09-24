@@ -23,6 +23,7 @@ from interbotix_descriptions import interbotix_mr_descriptions as mrd
 from config_parse import *
 from sensor_msgs.msg import JointState
 import rospy
+import kinematics
 """
 TODO: Implement the missing functions and add anything you need to support them
 """
@@ -77,7 +78,21 @@ class RXArm(InterbotixRobot):
         self.velocity_fb = None
         self.effort_fb = None
         # DH Params
-        self.dh_params = []
+        self.dh_params = np.array([[0, np.pi/2, 0.10391, 0],
+                                    [.20573, 0, 0, 0],
+                                    [.200, 0, 0, 0],
+                                    [0, np.pi/2, 0, 0],
+                                    [0, 0, .17415, 0]])
+
+        # 6 Dof params
+        # self.dh_params = np.array([[0, np.pi/2, 0.10391, 0],
+        #                             [.20573, 0, 0, 0],
+        #                             [0, np.pi/2, 0, 0],
+        #                             [0,-np.pi/2, .26895, 0],
+        #                             [0, np.pi/2, 0, 0],
+        #                             [0, 0, .17636, 0]])
+
+
         self.dh_config_file = dh_config_file
         if (dh_config_file is not None):
             self.dh_params = RXArm.parse_dh_param_file(dh_config_file)
@@ -207,9 +222,10 @@ class RXArm(InterbotixRobot):
         """!
         @brief      TODO Get the EE pose.
 
-        @return     The EE pose as [x, y, z, phi] or as needed.
+        @return     The EE pose as [x, y, z, phi, theta, psi]
         """
-        return [0, 0, 0, 0]
+        T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
+        return kinematics.get_pose_from_T(T)
 
     @_ensure_initialized
     def get_wrist_pose(self):

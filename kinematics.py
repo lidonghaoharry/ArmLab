@@ -106,14 +106,16 @@ def get_pose_from_T(T):
     """!
     @brief      Gets the pose from T.
 
-                TODO: implement this function return the joint pose from a T matrix of the form (x,y,z,phi) where phi is
-                rotation about base frame y-axis
+                TODO: implement this function return the joint pose from a T matrix of the form (x,y,z,phi,theta,psi) where angles
+                are zyz euler angles
 
     @param      T     transformation matrix
 
     @return     The pose from T.
     """
-    pass
+    pos = T[:3,3]
+    ang = get_euler_angles_from_T(T)
+    return np.hstack((pos,ang))
 
 
 def FK_pox(joint_angles, m_mat, s_lst):
