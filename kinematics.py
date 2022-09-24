@@ -213,7 +213,10 @@ def IK_geometric(dh_params, pose):
         c3 = (p3_1[0]**2 + p3_1[1]**2 - a2**2 - a3**2)/(2*a2*a3)
         s3 = np.sqrt(1-c3**2)
         s3 *= (-1)**((i & 0x01)) # pattern is +-+-
-        theta[2,i] = -np.arctan2(s3,c3)
+        try:
+            theta[2,i] = -np.arctan2(s3,c3)
+        except:
+            raise Exception("Outside of workspace")
 
         #theta 2
         theta[1,i] = np.arctan2(p3_1[1],p3_1[0]) - np.arctan2(a3*np.sin(theta[2,i]), a2+a3*np.cos(theta[2,i]))
@@ -277,7 +280,10 @@ def IK_6dof(dh_params, pose):
         c3 = (p4_1[0]**2 + p4_1[1]**2 - a2**2 - d4**2)/(2*a2*d4)
         s3 = np.sqrt(1-c3**2)
         s3 *= (-1)**((i & 0x02) >> 1) # pattern is ++--++--
-        theta[2,i] = np.pi/2 - np.arctan2(s3,c3)
+        try:
+            theta[2,i] = np.pi/2 - np.arctan2(s3,c3)
+        except:
+            raise Exception("Outside of workspace")
 
         #theta 2
         c3 = np.cos(theta[2,i])
@@ -286,11 +292,6 @@ def IK_6dof(dh_params, pose):
                       [-d4*c3, d4*s3 + a2]])
         vec = np.linalg.solve(A, p4_1[:2])
         theta[1,i] = np.arctan2(vec[1], vec[0])
-
-        # beta = -np.pi/2 + theta[2,i]
-        # print(beta)
-        # theta[1,i] = np.arctan2(p4_1[1],p4_1[0]) - np.arctan2(d4*np.sin(beta), a2+d4*np.cos(beta))
-
 
         R30 = np.zeros((3,3))
         c23 = np.cos(theta[1,i]+theta[2,i])
@@ -309,6 +310,8 @@ def IK_6dof(dh_params, pose):
         s5 = np.sqrt(1-c5**2)
         s5 *= (-1)**((i & 0x01)) # pattern is +-+-+-
         theta[4,i] = np.arctan2(s5, c5)
+        if c5 == 1:
+            print("WARNING: Wrist in singularity")
 
         theta[3,i] = np.arctan2(R63[1,2]/s5, R63[0,2]/s5)
         theta[5,i] = np.arctan2(R63[2,1]/s5, -R63[2,0]/s5)
