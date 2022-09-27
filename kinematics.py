@@ -57,7 +57,6 @@ def FK_dh(dh_params, joint_angles, link):
         theta[1] += np.arctan2(200,50)
         theta[2] += np.arctan2(50,200)
 
-
     for i in range(0,link):
 
         Ti = get_transform_from_dh(dh_params[i][0], dh_params[i][1], dh_params[i][2], theta[i])
@@ -312,9 +311,11 @@ def IK_6dof(dh_params, pose):
         theta[4,i] = np.arctan2(s5, c5)
         if c5 == 1:
             print("WARNING: Wrist in singularity")
-
-        theta[3,i] = np.arctan2(R63[1,2]/s5, R63[0,2]/s5)
-        theta[5,i] = np.arctan2(R63[2,1]/s5, -R63[2,0]/s5)
+            # choosing to leave theta 4 = 0
+            theta[5,i] = np.arctan2(R63[1,0], R63[1,1])
+        else: 
+            theta[3,i] = np.arctan2(R63[1,2]/s5, R63[0,2]/s5)
+            theta[5,i] = np.arctan2(R63[2,1]/s5, -R63[2,0]/s5)
 
         theta[0,i] -= np.pi/2
         theta[1,i] -= np.arctan2(200,50)
@@ -323,3 +324,17 @@ def IK_6dof(dh_params, pose):
         theta = ((theta + np.pi) % (2*np.pi)) - np.pi # constrain to [-pi,pi]
 
     return theta
+
+def pick_6dof_soln(theta, limits):
+    '''
+    Find the best solution from the possible ones
+
+    returns set of 6 theta values
+    '''
+    valid = np.array([True] * 8)
+    for i in range(6):
+        # check that theta values are in limits and not nan
+        valid = valid & (theta[i,:] >= limits[i,0]) & (theta[i,:] <= limits[i,1]) & np.invert(np.isnan(theta[i,:]))
+    print(valid)
+
+

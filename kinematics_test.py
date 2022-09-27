@@ -44,6 +44,13 @@ dh_params = np.array([[0, np.pi/2, 0.10391, 0],
                       [0, np.pi/2, 0, 0],
                       [0, 0, .17636, 0]])
 
+joint_limits = np.array([[-np.pi, np.pi],
+                        [-1.5, np.pi/2],
+                        [-np.pi/2, 1.6],
+                        [-np.pi, np.pi],
+                        [-np.pi/2, np.pi/2],
+                        [-np.pi, np.pi]])
+
 # tol = 1e-4
 
 # for i in range(100):
@@ -62,7 +69,8 @@ dh_params = np.array([[0, np.pi/2, 0.10391, 0],
 
 #     assert(np.max(err[:,best_soln_idx]) < tol)
 
-pose = kinematics.FK_dh(dh_params, [0, -np.pi/2, np.pi/2, 0,0,0], 6)
+pose = kinematics.FK_dh(dh_params, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 6)
 print(pose)
 theta = kinematics.IK_6dof(dh_params, pose)
 print(theta)
+kinematics.pick_6dof_soln(theta, joint_limits)

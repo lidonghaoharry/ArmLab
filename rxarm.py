@@ -91,7 +91,13 @@ class RXArm(InterbotixRobot):
         #                             [0,-np.pi/2, .26895, 0],
         #                             [0, np.pi/2, 0, 0],
         #                             [0, 0, .17636, 0]])
-
+        
+        self.joint_limits = np.array([[-np.pi, np.pi],
+                                      [-1.5, np.pi/2],
+                                      [-np.pi/2, np.pi/2],
+                                      [-np.pi, np.pi],
+                                      [-np.pi/2, np.pi/2],
+                                      [-np.pi, np.pi]])
 
         self.dh_config_file = dh_config_file
         if (dh_config_file is not None):
