@@ -49,7 +49,7 @@ def FK_dh(dh_params, joint_angles, link):
     theta = np.copy(joint_angles)
     if len(joint_angles) == 5:
         theta[0] += np.pi/2
-        theta[1] += np.arctan2(200,50)
+        theta[1] -= np.arctan2(200,50)
         theta[2] -= np.arctan2(200,50)
         theta[3] += np.pi/2
     elif len(joint_angles) == 6:
@@ -219,34 +219,29 @@ def IK_geometric(dh_params, pose):
             raise Exception("Outside of workspace")
 
         #theta 2
-        theta[1,i] = np.arctan2(p3_1[1],p3_1[0]) - np.arctan2(a3*np.sin(theta[2,i]), a2+a3*np.cos(theta[2,i]))
+        theta[1,i] = -(np.arctan2(p3_1[1],p3_1[0]) - np.arctan2(a3*np.sin(theta[2,i]), a2+a3*np.cos(theta[2,i])))
 
         #theta 5
-        T30 = np.zeros((4,4))
-        c23 = np.cos(theta[1,i]+theta[2,i])
-        s23 = np.sin(theta[1,i]+theta[2,i])
-        T30[0,0] = c23*c1
-        T30[0,1] = -s23*c1
-        T30[0,2] = s1
-        T30[0,3] = c1 * (a3*c23 + a2*np.cos(theta[1,i]))
-        T30[1,0] = c23*s1
-        T30[1,1] = -s23*s1
-        T30[1,2] = -c1
-        T30[1,3] = s1 * (a3*c23 + a2*np.cos(theta[1,i]))
-        T30[2,0] = s23
-        T30[2,1] = c23
-        T30[2,3] = dh_params[0,2]+a3*s23+a2*np.sin(theta[1,i])
-        T30[3,3] = 1
+        R30 = np.zeros((3,3))
+        c2_3 = np.cos(theta[1,i]-theta[2,i])
+        s2_3 = np.sin(theta[1,i]-theta[2,i])
+        R30[0,0] = c2_3*c1
+        R30[0,1] = s2_3*c1
+        R30[0,2] = s1
+        R30[1,0] = c2_3*s1
+        R30[1,1] = s2_3*s1
+        R30[1,2] = -c1
+        R30[2,0] = -s2_3
+        R30[2,1] = c2_3
 
-        T03 = inv_transform(T30)
-        T53 = np.matmul(T03, T50)
+        R53 = np.matmul(R30.T, T50[:3,:3])
 
-        theta[4,i] = np.arctan2(T53[2,0], T53[2,1])
-        theta[3,i] = np.arctan2(T53[0,2], -T53[1,2])
+        theta[4,i] = np.arctan2(R53[2,0], R53[2,1])
+        theta[3,i] = np.arctan2(R53[0,2], -R53[1,2])
 
 
         theta[0,i] -= np.pi/2
-        theta[1,i] -= np.arctan2(200,50)
+        theta[1,i] += np.arctan2(200,50)
         theta[2,i] += np.arctan2(200,50)
         theta[3,i] -= np.pi/2
 
