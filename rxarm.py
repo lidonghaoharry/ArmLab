@@ -231,7 +231,7 @@ class RXArm(InterbotixRobot):
         @return     The EE pose as [x, y, z, phi, theta, psi]
         """
         T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
-        return kinematics.get_pose_from_T(T)
+        return kinematics.get_pose_from_T(T).tolist()
 
     @_ensure_initialized
     def get_wrist_pose(self):

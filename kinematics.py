@@ -97,7 +97,8 @@ def get_euler_angles_from_T(T):
 
     @return     The euler angles from T.
     """
-    rot = R.from_matrix(T[:3,:3])
+    rot = R.from_dcm(T[:3,:3])
+    # rot = R.from_matrix(T[:3,:3])
     return rot.as_euler('zyz')
 
 

@@ -241,13 +241,13 @@ class Camera():
         cv2.drawContours(mask, [contour], -1, 255, -1)
         mean = cv2.mean(data, mask=mask)[:3]
         min_dist = (np.inf, None)
-        print("mean: " + str(mean))
+        # print("mean: " + str(mean))
         for label in labels:
             # d = np.linalg.norm(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0] - np.array(mean))
             # print("HSV: " + str(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0]) + " d: " + str(d))
 
             d = np.linalg.norm(label["color"] - np.array(mean))
-            print("d: " + str(d))
+            # print("d: " + str(d))
             if d < min_dist[0]:
                 min_dist = (d, label["id"])
         return min_dist[1] 
@@ -299,16 +299,17 @@ class Camera():
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
             cv2.putText(self.VideoFrame, color, (cx-30, cy+40), self.font, 1.0, (0,0,0), thickness=2)
-            cv2.putText(self.VideoFrame, str(int(theta)), (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+            # cv2.putText(self.VideoFrame, str(int(theta)), (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
             print(color, int(theta), cx, cy)
 
             # draw actual contour
             cv2.drawContours(self.VideoFrame, [contour], -1, (0,255,255), thickness=1)
 
-            # draw bounding box around contour
+            # draw bounding box around blocks
             rect = cv2.minAreaRect(contour)
-            points = cv2.boxPoints(rect)
-            cv2.rectangle(self.VideoFrame, (points[0, 0], points[0, 1]), (points[2, 0], points[2, 1]), (0, 255, 0), 2)
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            cv2.drawContours(self.VideoFrame, [box], 0, (0, 255, 0), 2)
 
     def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
@@ -333,7 +334,6 @@ class Camera():
             #correct tag_detections depth
             d = self.DepthFrameRaw[int(tag_pixel_detections[1,i]), int(tag_pixel_detections[0,i])]
             self.tag_detections[2,i] = d
-
 
         # Kabsch algorithm wikipedia.org/wiki/Kabsh_algorithm
         locations_centroid = np.mean(self.tag_locations, axis=1).reshape(-1,1)
