@@ -79,6 +79,9 @@ class Gui(QMainWindow):
         self.ui.videoDisplay.mouseMoveEvent = self.trackMouse
         self.ui.videoDisplay.mousePressEvent = self.calibrateMousePress
 
+        # event for click pick and place
+        self.ui.videoDisplay.mousePressEvent = self.clickPickPlace 
+
         # Buttons
         # Handy lambda function falsethat can be used with Partial to only set the new state if the rxarm is initialized
         #nxt_if_arm_init = lambda next_state: self.sm.set_next_state(next_state if self.rxarm.initialized else None)
@@ -242,6 +245,15 @@ class Gui(QMainWindow):
             X_w = self.camera.to_world_coords(z, np.array([pt.x(), pt.y(), 1]))
             
             self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" % (X_w[0], X_w[1], X_w[2]))
+
+    def clickPickPlace(self, mouse_event):
+        pt = mouse_event.pos()
+        if self.camera.DepthFrameRaw.any() != 0:
+            z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
+            X_w = self.camera.to_world_coords(z, np.array([pt.x(), pt.y(), 1]))
+            print(X_w)
+            self.rxarm.pick_from_top(X_w[:3], self.camera.block_info)
+
 
     def calibrateMousePress(self, mouse_event):
         """!

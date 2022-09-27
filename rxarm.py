@@ -66,7 +66,8 @@ class RXArm(InterbotixRobot):
         self.joint_names = self.resp.joint_names
         self.num_joints = 5
         # Gripper
-        self.gripper_state = True
+        self.gripper_state = True # True if open
+        self.has_block = False
         # State
         self.initialized = False
         # Cmd
@@ -78,11 +79,11 @@ class RXArm(InterbotixRobot):
         self.velocity_fb = None
         self.effort_fb = None
         # DH Params
-        self.dh_params = np.array([[0, np.pi/2, 0.10391, 0],
-                                    [.20573, 0, 0, 0],
-                                    [.200, 0, 0, 0],
-                                    [0, np.pi/2, 0, 0],
-                                    [0, 0, .17415, 0]])
+        self.dh_params = np.array([[0, -np.pi/2, 0.10391, 0],
+                      [.20573, np.pi, 0, 0],
+                      [.200, 0, 0, 0],
+                      [0, np.pi/2, 0, 0],
+                      [0, 0, .17415, 0]])
 
         # 6 Dof params
         # self.dh_params = np.array([[0, np.pi/2, 0.10391, 0],
@@ -231,6 +232,7 @@ class RXArm(InterbotixRobot):
         @return     The EE pose as [x, y, z, phi, theta, psi]
         """
         T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
+        # print(T)
         return kinematics.get_pose_from_T(T).tolist()
 
     @_ensure_initialized
@@ -263,6 +265,35 @@ class RXArm(InterbotixRobot):
         @return     The dh parameters.
         """
         return self.dh_params
+
+    def pick_from_top(self, pos, block_info, theta=0):
+        print(block_info)
+        if self.has_block:
+            pos[2] += 40
+        else:
+            pos[2] += 5
+
+        approach_point = np.array([pos[0], pos[1], pos[2] + 70])
+        joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point)
+        self.set_positions(joint_angles_approach)
+        time.sleep(2)
+
+        joint_angles = kinematics.IK_from_top(self.dh_params, pos)
+        self.set_positions(joint_angles)
+        time.sleep(2)
+
+        if self.has_block:
+            self.open_gripper()
+            self.has_block = False
+        else:
+            self.close_gripper()
+            self.has_block = True
+
+        time.sleep(2)
+        self.set_positions(joint_angles_approach)
+
+    def which_block(self, blocks):
+        pass 
 
 
 class RXArmThread(QThread):

@@ -99,7 +99,7 @@ def get_euler_angles_from_T(T):
     """
     rot = R.from_dcm(T[:3,:3])
     # rot = R.from_matrix(T[:3,:3])
-    return rot.as_euler('zyz')
+    return rot.as_euler('ZYZ')
 
 
 def get_pose_from_T(T):
@@ -196,7 +196,7 @@ def IK_geometric(dh_params, pose):
         c1 = p3_0[0]/mag_p3_0
         s1 = p3_0[1]/mag_p3_0
 
-        theta[0,i] = np.arctan2(s1,c1) # pattern is ++++---
+        theta[0,i] = np.arctan2(s1,c1) # pattern is ++--
 
         # theta 3
         T10 = np.array([[c1, 0, s1, 0],
@@ -248,6 +248,21 @@ def IK_geometric(dh_params, pose):
         theta = ((theta + np.pi) % (2*np.pi)) - np.pi # constrain to [-pi,pi]
         
     return theta
+
+
+def IK_from_top(dh_params, pos, theta=0):
+    rot = R.from_euler("ZYZ", [-np.pi/2, np.pi, 0])
+    T = np.eye(4)
+    T[:3,:3] = rot.as_dcm()
+    T[:3,3] = pos/1000 # mm to m
+    print(T)
+    theta = IK_geometric(dh_params, T)
+
+    if theta[0,0] <= np.pi/2 and theta[0,0] >= -np.pi/2:
+        return theta[:,0]
+    else:
+        return theta[:,2]
+
 
 def IK_6dof(dh_params, pose):
     T60 = pose
