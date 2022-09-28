@@ -48,6 +48,7 @@ class Camera():
         """ block info """
         self.block_contours = np.array([])
         self.block_detections = np.array([])
+        self.block_info = []
 
         # image for template matching
         self.template_img = cv2.imread("template.png", 0)
@@ -241,13 +242,13 @@ class Camera():
         cv2.drawContours(mask, [contour], -1, 255, -1)
         mean = cv2.mean(data, mask=mask)[:3]
         min_dist = (np.inf, None)
-        print("mean: " + str(mean))
+        # print("mean: " + str(mean))
         for label in labels:
             # d = np.linalg.norm(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0] - np.array(mean))
             # print("HSV: " + str(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0]) + " d: " + str(d))
 
             d = np.linalg.norm(label["color"] - np.array(mean))
-            print("d: " + str(d))
+            # print("d: " + str(d))
             if d < min_dist[0]:
                 min_dist = (d, label["id"])
         return min_dist[1] 
@@ -266,7 +267,7 @@ class Camera():
         else:
             upper = self.auto_Hinv[2, 3]
 
-        upper -= 10
+        upper -= 18
 
         if self.top_left is None or self.bottom_right is None:
             # ideally this should automatically get the workspace boundary
@@ -290,25 +291,32 @@ class Camera():
 
          # convert video frame from rgb to hsv
         # hsvImg = cv2.cvtColor(self.VideoFrame, cv2.COLOR_BGR2HSV)
+        self.block_info = [] # reset block info every timestep
         for contour in contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
             color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
 
             theta = cv2.minAreaRect(contour)[2]
             M = cv2.moments(contour)
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
-            cv2.putText(self.VideoFrame, color, (cx-30, cy+40), self.font, 1.0, (0,0,0), thickness=2)
-            cv2.putText(self.VideoFrame, str(int(theta)), (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
-            print(color, int(theta), cx, cy)
 
-            # draw actual contour
-            cv2.drawContours(self.VideoFrame, [contour], -1, (0,255,255), thickness=1)
+            if M['m00'] != 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                cv2.putText(self.VideoFrame, color, (cx-30, cy+40), self.font, 1.0, (0,0,0), thickness=2)
+                # cv2.putText(self.VideoFrame, str(int(theta)), (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+                # print(color, int(theta), cx, cy)
 
-            # draw bounding box around contour
-            rect = cv2.minAreaRect(contour)
-            points = cv2.boxPoints(rect)
-            cv2.rectangle(self.VideoFrame, (points[0, 0], points[0, 1]), (points[2, 0], points[2, 1]), (0, 255, 0), 2)
+                # draw actual contour
+                cv2.drawContours(self.VideoFrame, [contour], -1, (0,255,255), thickness=1)
+
+                # draw bounding box around blocks
+                rect = cv2.minAreaRect(contour)
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                cv2.drawContours(self.VideoFrame, [box], 0, (0, 255, 0), 2)
+
+                # track block info 
+                self.block_info.append((box, theta, color))
 
     def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
@@ -333,7 +341,6 @@ class Camera():
             #correct tag_detections depth
             d = self.DepthFrameRaw[int(tag_pixel_detections[1,i]), int(tag_pixel_detections[0,i])]
             self.tag_detections[2,i] = d
-
 
         # Kabsch algorithm wikipedia.org/wiki/Kabsh_algorithm
         locations_centroid = np.mean(self.tag_locations, axis=1).reshape(-1,1)

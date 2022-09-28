@@ -70,7 +70,7 @@ s_lst = np.array([[0, 0, 1, 0, 0, 0],
 #     assert(np.max(err[:,best_soln_idx]) < tol)
 
 pose = kinematics.FK_dh(dh_params, [0.0, 0.0, 0.0, 0.0, 0.0], 5)
-print(kinematics.get_pose_from_T(pose))
+print(pose)
 # theta = kinematics.IK_6dof(dh_params, pose)
 # print(theta)
 # kinematics.pick_6dof_soln(theta, joint_limits)
