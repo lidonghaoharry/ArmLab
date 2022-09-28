@@ -210,9 +210,9 @@ def IK_geometric(dh_params, pose):
         a2 = dh_params[1][0]
         a3 = dh_params[2][0]
         c3 = (p3_1[0]**2 + p3_1[1]**2 - a2**2 - a3**2)/(2*a2*a3)
-        s3 = np.sqrt(1-c3**2)
-        s3 *= (-1)**((i & 0x01)) # pattern is +-+-
         try:
+            s3 = np.sqrt(1-c3**2)
+            s3 *= (-1)**((i & 0x01)) # pattern is +-+-
             theta[2,i] = -np.arctan2(s3,c3)
         except:
             raise Exception("Outside of workspace")
@@ -319,17 +319,3 @@ def IK_6dof(dh_params, pose):
         theta = ((theta + np.pi) % (2*np.pi)) - np.pi # constrain to [-pi,pi]
 
     return theta
-
-def pick_6dof_soln(theta, limits):
-    '''
-    Find the best solution from the possible ones
-
-    returns set of 6 theta values
-    '''
-    valid = np.array([True] * 8)
-    for i in range(6):
-        # check that theta values are in limits and not nan
-        valid = valid & (theta[i,:] >= limits[i,0]) & (theta[i,:] <= limits[i,1]) & np.invert(np.isnan(theta[i,:]))
-    print(valid)
-
-
