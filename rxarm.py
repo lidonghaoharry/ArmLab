@@ -85,21 +85,6 @@ class RXArm(InterbotixRobot):
                       [0, np.pi/2, 0, 0],
                       [0, 0, .17415, 0]])
 
-        # 6 Dof params
-        # self.dh_params = np.array([[0, np.pi/2, 0.10391, 0],
-        #                             [.20573, 0, 0, 0],
-        #                             [0, np.pi/2, 0, 0],
-        #                             [0,-np.pi/2, .26895, 0],
-        #                             [0, np.pi/2, 0, 0],
-        #                             [0, 0, .17636, 0]])
-        
-        self.joint_limits = np.array([[-np.pi, np.pi],
-                                      [-1.5, np.pi/2],
-                                      [-np.pi/2, np.pi/2],
-                                      [-np.pi, np.pi],
-                                      [-np.pi/2, np.pi/2],
-                                      [-np.pi, np.pi]])
-
         self.dh_config_file = dh_config_file
         if (dh_config_file is not None):
             self.dh_params = RXArm.parse_dh_param_file(dh_config_file)
@@ -279,6 +264,31 @@ class RXArm(InterbotixRobot):
         time.sleep(2)
 
         joint_angles = kinematics.IK_from_top(self.dh_params, pos)
+        self.set_positions(joint_angles)
+        time.sleep(2)
+
+        if self.has_block:
+            self.open_gripper()
+            self.has_block = False
+        else:
+            self.close_gripper()
+            self.has_block = True
+
+        time.sleep(2)
+        self.set_positions(joint_angles_approach)
+    
+    def pick_from_side(self, pos):
+        if self.has_block:
+            pos[2] += 30
+        else:
+            pos[2] += 30
+
+        approach_point = np.array([pos[0], pos[1], pos[2] + 70])
+        joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
+        self.set_positions(joint_angles_approach)
+        time.sleep(2)
+
+        joint_angles = kinematics.IK_from_side(self.dh_params, pos)
         self.set_positions(joint_angles)
         time.sleep(2)
 

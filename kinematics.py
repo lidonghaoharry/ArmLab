@@ -251,7 +251,7 @@ def IK_geometric(dh_params, pose):
 
 
 def IK_from_top(dh_params, pos, theta=0):
-    rot = R.from_euler("ZYZ", [-np.pi/2, np.pi, 0])
+    rot = R.from_euler("ZYZ", [np.min([theta,np.pi/2-theta]), np.pi, np.pi/2])
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
     T[:3,3] = pos/1000 # mm to m
@@ -262,6 +262,21 @@ def IK_from_top(dh_params, pos, theta=0):
         return theta[:,0]
     else:
         return theta[:,2]
+
+def IK_from_side(dh_params, pos):
+    alpha = np.arctan2(pos[1],pos[0])
+    rot = R.from_euler("ZYZ", [alpha-np.pi, -np.pi/2, 0])
+    T = np.eye(4)
+    T[:3,:3] = rot.as_dcm()
+    T[:3,3] = pos/1000 # mm to m
+    print(T)
+    theta = IK_geometric(dh_params, T)
+
+    if theta[0,0] <= np.pi/2 and theta[0,0] >= -np.pi/2:
+        return theta[:,0]
+    else:
+        return theta[:,2]
+
 
 
 def IK_6dof(dh_params, pose):
