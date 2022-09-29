@@ -251,7 +251,7 @@ def IK_geometric(dh_params, pose):
 
 
 def IK_from_top(dh_params, pos, theta=0):
-    rot = R.from_euler("ZYZ", [np.min([theta,np.pi/2-theta]), np.pi, np.pi/2])
+    rot = R.from_euler("ZYZ", [-theta, np.pi, np.pi/2])
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
     T[:3,3] = pos/1000 # mm to m

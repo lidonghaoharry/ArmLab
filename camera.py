@@ -2,7 +2,6 @@
 Class to represent the camera.
 """
 
-import cv2
 import time
 import numpy as np
 from PyQt4.QtGui import QImage
@@ -291,7 +290,8 @@ class Camera():
 
          # convert video frame from rgb to hsv
         # hsvImg = cv2.cvtColor(self.VideoFrame, cv2.COLOR_BGR2HSV)
-        self.block_info = [] # reset block info every timestep
+        # self.block_info = [] # reset block info every timestep
+        new_blocks = []
         for contour in contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
             color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
@@ -315,8 +315,15 @@ class Camera():
                 box = np.int0(box)
                 cv2.drawContours(self.VideoFrame, [box], 0, (0, 255, 0), 2)
 
-                # track block info 
-                self.block_info.append((box, theta, color))
+                # # track block info 
+                # center = rect[0]
+                # if self.to_add(center, thresh=20):
+                #     new_blocks.append((center, box, theta, color, contour))
+
+
+    def to_add(self):
+        pass
+
 
     def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
