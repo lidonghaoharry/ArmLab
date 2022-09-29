@@ -236,7 +236,7 @@ class RXArm(InterbotixRobot):
         n = 8
         th_data = np.zeros((n, 5))
         pose_data = np.zeros((4,4,n))
-        for i in range(10):
+        for i in range(n):
             self.set_g_corrected_positions(theta)
             time.sleep(3)
             pose_data[:,:,i] = self.get_ee_T()
