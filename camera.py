@@ -13,7 +13,7 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from apriltag_ros.msg import *
 from cv_bridge import CvBridge, CvBridgeError
-
+import random
 
 class Camera():
     """!
@@ -48,6 +48,7 @@ class Camera():
         self.block_contours = np.array([])
         self.block_detections = np.array([])
         self.block_info = []
+        self.ids = []
 
         # image for template matching
         self.template_img = cv2.imread("template.png", 0)
@@ -260,6 +261,7 @@ class Camera():
                     TODO: Implement a blob detector to find blocks in the depth image
         """
         lower = 500
+        # print("number of blocks: " + str(len(self.block_info)))
 
         if self.auto_Hinv is None:
             upper = self.rough_Hinv[2, 3]
@@ -290,8 +292,8 @@ class Camera():
 
          # convert video frame from rgb to hsv
         # hsvImg = cv2.cvtColor(self.VideoFrame, cv2.COLOR_BGR2HSV)
-        # self.block_info = [] # reset block info every timestep
-        new_blocks = []
+        self.block_info = [] # reset block info every timestep
+        # new_blocks = []
         for contour in contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
             color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
@@ -315,15 +317,39 @@ class Camera():
                 box = np.int0(box)
                 cv2.drawContours(self.VideoFrame, [box], 0, (0, 255, 0), 2)
 
-                # # track block info 
-                # center = rect[0]
-                # if self.to_add(center, thresh=20):
-                #     new_blocks.append((center, box, theta, color, contour))
+                # track block info 
+                center = rect[0]
+                if self.to_add(center) is True:
+                    self.block_info.append((self.generate_id(), center, box, theta, color, contour))
+
+                # self.block_info.append((1, center, box, theta, color, contour))
 
 
-    def to_add(self):
-        pass
 
+    def to_add(self, center, thresh=5):
+        for block in self.block_info:
+            bc = block[1]
+            if np.linalg.norm(center, bc) < thresh:
+                return False
+
+        return True
+
+    def remove_block(self, id):
+        to_remove = None
+        for block in self.block_info:
+            if block[0] == id:
+                to_remove = block 
+                print(block[0])
+
+        self.block_info.remove(to_remove)
+
+    def generate_id(self):
+        id = random.randint(0, 100000)
+        while id in self.ids:
+            id = random.randint(0, 100000)
+        
+        self.ids.append(id)
+        return id
 
     def to_world_coords(self, z, uv_cam):
         X_c = z * np.matmul(np.linalg.inv(self.intrinsic_matrix), uv_cam)
@@ -402,7 +428,7 @@ class TagImageListener:
     def callback(self, data):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, data.encoding)
-            #cv_image = cv2.rotate(cv_image, cv2.ROTATE_180)
+            # cv_image = cv2.rotate(cv_image, cv2.ROTATE_180)
             # cv_image = np.zeros((720, 1280, 3)).astype(np.uint8)
         except CvBridgeError as e:
             print(e)
