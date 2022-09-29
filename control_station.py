@@ -250,9 +250,13 @@ class Gui(QMainWindow):
         pt = mouse_event.pos()
         if self.camera.DepthFrameRaw.any() != 0:
             z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
+
+            # get point in both world and camera coords
             X_w = self.camera.to_world_coords(z, np.array([pt.x(), pt.y(), 1]))
-            print(X_w)
-            self.rxarm.pick_from_top(X_w[:3], self.camera.block_info)
+            X_c = [pt.x(), pt.y()]
+
+            # tell arm to move to click position
+            self.rxarm.pick_from_top(X_w[:3], X_c, self.camera.block_info)
 
 
     def calibrateMousePress(self, mouse_event):

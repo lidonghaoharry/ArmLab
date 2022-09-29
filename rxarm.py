@@ -24,6 +24,8 @@ from config_parse import *
 from sensor_msgs.msg import JointState
 import rospy
 import kinematics
+import cv2
+
 """
 TODO: Implement the missing functions and add anything you need to support them
 """
@@ -269,19 +271,27 @@ class RXArm(InterbotixRobot):
         """
         return self.dh_params
 
-    def pick_from_top(self, pos, block_info, theta=0):
-        print(block_info)
-        if self.has_block:
-            pos[2] += 40
-        else:
-            pos[2] += 5
+    def pick_from_top(self, pos_w, pos_c, block_info, theta=0):
+        block_angle = self.which_block(pos_c, block_info)
+        print("block angle return: " + str(block_angle))
 
-        approach_point = np.array([pos[0], pos[1], pos[2] + 70])
-        joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point)
+        # set gripper angle to the angle of the block
+        if block_angle == -1:
+            block_angle = 0
+        else:
+            block_angle = block_angle[1]
+            
+        if self.has_block:
+            pos_w[2] += 40
+        else:
+            pos_w[2] += 5
+
+        approach_point = np.array([pos_w[0], pos_w[1], pos_w[2] + 70])
+        joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point, block_angle*np.pi/180)
         self.set_positions(joint_angles_approach)
         time.sleep(2)
 
-        joint_angles = kinematics.IK_from_top(self.dh_params, pos)
+        joint_angles = kinematics.IK_from_top(self.dh_params, pos_w, block_angle*np.pi/180)
         self.set_positions(joint_angles)
         time.sleep(2)
 
@@ -320,8 +330,22 @@ class RXArm(InterbotixRobot):
         time.sleep(2)
         self.set_positions(joint_angles_approach)
 
-    def which_block(self, blocks):
-        pass 
+    def which_block(self, point, block_info):
+        ret = -1
+        # print("point: " + str(point))
+
+        for block in block_info:
+            # contour = block[3]
+            box = block[0]
+            # print("contour: " + str(contour))
+            # print("color: " + str(block[2]))
+            # print("box: " + str(box))
+
+            if cv2.pointPolygonTest(box, (point[0], point[1]), False) == 1:
+                ret = block
+
+        return ret
+
 
 
 class RXArmThread(QThread):
