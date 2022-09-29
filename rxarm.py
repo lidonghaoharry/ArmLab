@@ -220,6 +220,24 @@ class RXArm(InterbotixRobot):
         # print(T)
         return kinematics.get_pose_from_T(T).tolist()
 
+    def get_ee_T(self):
+        return kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
+
+    def collect_deflect_data(self):
+        theta = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        n = 5
+        th_data = np.zeros((n, 5))
+        pose_data = np.zeros((4,4,n))
+        for i in range(10):
+            self.set_positions(theta)
+            time.sleep(3)
+            pose_data[:,:,i] = self.get_ee_T()
+            th_data[i,:] = theta
+            theta[1] += 0.1
+            theta[2] -= 0.1
+        np.save('theta_data', th_data)
+        np.save('pose_data', pose_data)
+
     @_ensure_initialized
     def get_wrist_pose(self):
         """!
