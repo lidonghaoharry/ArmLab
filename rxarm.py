@@ -92,10 +92,16 @@ class RXArm(InterbotixRobot):
             self.dh_params = RXArm.parse_dh_param_file(dh_config_file)
         # POX params
         self.M_matrix = []
-        self.S_list = []
+        self.S_list = np.array([[0, 0, 1, 0, 0, 0],
+                                [-1, 0, 0, 0, -0.10391, 0],
+                                [1, 0, 0, 0, 0.30391, -0.05],
+                                [1, 0, 0, 0, 0.30391, -0.25],
+                                [0, 1, 0, -0.30391, 0, 0]])
 
         # max speed (arbitrarily set atm) radians/sec
         self.max_speed = 0.75
+        
+        self.gearbox_k = np.array([0.0, 0.0118, 0.0664, 0.0161, 0.0])
 
     def initialize(self):
         """!
@@ -231,14 +237,14 @@ class RXArm(InterbotixRobot):
         th_data = np.zeros((n, 5))
         pose_data = np.zeros((4,4,n))
         for i in range(10):
-            self.set_positions(theta)
+            self.set_g_corrected_positions(theta)
             time.sleep(3)
             pose_data[:,:,i] = self.get_ee_T()
             th_data[i,:] = theta
             theta[1] += 0.1
             theta[2] -= 0.1
-        np.save('theta_data', th_data)
-        np.save('pose_data', pose_data)
+        np.save('theta_data2', th_data)
+        np.save('pose_data2', pose_data)
 
     @_ensure_initialized
     def get_wrist_pose(self):
@@ -345,6 +351,11 @@ class RXArm(InterbotixRobot):
                 ret = block
 
         return ret
+    
+    def set_g_corrected_positions(self, joint_angles):
+        g_forces = kinematics.get_grav(joint_angles, self.S_list)
+        corrections = self.gearbox_k*g_forces
+        self.set_positions(joint_angles + corrections)
 
 
 
