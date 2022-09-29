@@ -242,7 +242,7 @@ class RXArm(InterbotixRobot):
             pose_data[:,:,i] = self.get_ee_T()
             th_data[i,:] = theta
             theta[1] += 0.1
-            theta[2] -= 0.1
+            theta[2] += 0.1
         np.save('theta_data2', th_data)
         np.save('pose_data2', pose_data)
 
@@ -359,7 +359,7 @@ class RXArm(InterbotixRobot):
     
     def set_g_corrected_positions(self, joint_angles):
         g_forces = kinematics.get_grav(joint_angles, self.S_list)
-        corrections = self.gearbox_k*g_forces
+        corrections = self.gearbox_k * g_forces
         self.set_positions(joint_angles + corrections)
 
 
