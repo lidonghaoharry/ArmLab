@@ -227,16 +227,16 @@ class RXArm(InterbotixRobot):
 
     def collect_deflect_data(self):
         theta = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        n = 5
+        n = 8
         th_data = np.zeros((n, 5))
         pose_data = np.zeros((4,4,n))
-        for i in range(10):
+        for i in range(n):
             self.set_positions(theta)
             time.sleep(3)
             pose_data[:,:,i] = self.get_ee_T()
             th_data[i,:] = theta
             theta[1] += 0.1
-            theta[2] -= 0.1
+            theta[2] += 0.1
         np.save('theta_data', th_data)
         np.save('pose_data', pose_data)
 
@@ -272,14 +272,16 @@ class RXArm(InterbotixRobot):
         return self.dh_params
 
     def pick_from_top(self, pos_w, pos_c, block_info, theta=0):
-        block_angle = self.which_block(pos_c, block_info)
-        print("block angle return: " + str(block_angle))
+        block = self.which_block(pos_c, block_info)
+        print("which block return: " + str(block))
 
         # set gripper angle to the angle of the block
-        if block_angle == -1:
+        if block == -1:
             block_angle = 0
+            id = -1
         else:
-            block_angle = block_angle[1]
+            block_angle = block[1][3]
+            id = block[0]
             
         if self.has_block:
             pos_w[2] += 40
@@ -304,6 +306,8 @@ class RXArm(InterbotixRobot):
 
         time.sleep(2)
         self.set_positions(joint_angles_approach)
+
+        return id 
     
     def pick_from_side(self, pos):
         if self.has_block:
@@ -336,13 +340,14 @@ class RXArm(InterbotixRobot):
 
         for block in block_info:
             # contour = block[3]
-            box = block[0]
+            id = block[0]
+            box = block[2]
             # print("contour: " + str(contour))
             # print("color: " + str(block[2]))
             # print("box: " + str(box))
 
             if cv2.pointPolygonTest(box, (point[0], point[1]), False) == 1:
-                ret = block
+                ret = (id, block)
 
         return ret
 
