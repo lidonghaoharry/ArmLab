@@ -31,6 +31,6 @@ def residual(k, theta, pose):
         err[i] = np.linalg.norm(pose[1:3,3,i] - T_corr[1:3,3])
     return err
 
-k0 = np.array([0.0, 0.02, 0.045, 0.015, 0.01])
-opt_soln = least_squares(residual, k0, args=(th_data,pose_data), bounds=(0,1))
+k0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+opt_soln = least_squares(residual, k0, args=(th_data,pose_data), bounds=(0,1), verbose=2)
 print(opt_soln.x)
