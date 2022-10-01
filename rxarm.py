@@ -279,7 +279,7 @@ class RXArm(InterbotixRobot):
 
     def pick_from_top(self, pos_w, pos_c, block_info, theta=0):
         block = self.which_block(pos_c, block_info)
-        print("which block return: " + str(block))
+        # print("which block return: " + str(block))
 
         # set gripper angle to the angle of the block
         if block == -1:
