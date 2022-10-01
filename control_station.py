@@ -112,6 +112,8 @@ class Gui(QMainWindow):
         self.ui.btnUser8.setText("Replay Waypoints")
         self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'replay'))
 
+        self.ui.btnUser9.clicked.connect(self.rxarm.collect_deflect_data)
+
         # Sliders
         for sldr in self.joint_sliders:
             sldr.valueChanged.connect(self.sliderChange)
@@ -256,7 +258,11 @@ class Gui(QMainWindow):
             X_c = [pt.x(), pt.y()]
 
             # tell arm to move to click position
-            self.rxarm.pick_from_top(X_w[:3], X_c, self.camera.block_info)
+            id = self.rxarm.pick_from_top(X_w[:3], X_c, self.camera.block_info)
+
+            # remove block from detected blocks
+            if id != -1:
+                self.camera.remove_block(id)
 
 
     def calibrateMousePress(self, mouse_event):
