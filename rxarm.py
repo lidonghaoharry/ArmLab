@@ -101,7 +101,7 @@ class RXArm(InterbotixRobot):
         # max speed (arbitrarily set atm) radians/sec
         self.max_speed = 0.75
         
-        self.gearbox_k = np.array([0.0, 0.0118, 0.0664, 0.0161, 0.0])
+        self.gearbox_k = np.array([0.0, 0.0194, 0.0819, 0.0, 0.0])
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
