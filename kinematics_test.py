@@ -124,7 +124,8 @@ s_lst = np.array([[0, 0, 1, 0, 0, 0],
 # print("original pose:\n", pose)
 # print("achieved pose:\n", kinematics.FK_dh(dh_params, theta-corrections, 5))
 
-gearbox_k = np.array([0.0, 0.0118, 0.0664, 0.0161, 0.0])
+# Verifying g correction
+gearbox_k = np.array([0.0, 0.01495, 0.1151, 0.01991, 0.0])
 theta = np.array([0.0, 0.5, 0.0, 0.0, 0.0])
 g_forces = kinematics.get_grav(theta, s_lst)
 corrections = gearbox_k*g_forces
@@ -133,4 +134,12 @@ T_corr = kinematics.FK_dh(dh_params, theta + corrections, 5)
 print(corrections)
 print("DH:\n", T_dh)
 print("Corr:\n", T_corr)
-# print("diff\n", T_dh-T_pox)
+print("diff\n", T_dh-T_corr)
+
+# pose = np.load('pose_data2.npy')
+# theta = np.load('theta_data2.npy')
+# for i in range(theta.shape[0]):
+#     print('theta:\n', theta[i])
+#     T_dh = kinematics.FK_dh(dh_params, theta[i], 5)
+#     print("DH:\n", T_dh)
+#     print("Actual:\n", pose[:,:,i])
