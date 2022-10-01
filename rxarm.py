@@ -103,6 +103,9 @@ class RXArm(InterbotixRobot):
         
         self.gearbox_k = np.array([0.0, 0.0118, 0.0664, 0.0161, 0.0])
 
+        # end effector pose 
+        self.ee_pose = [0.0 for i in range(6)]
+
     def initialize(self):
         """!
         @brief      Initializes the RXArm from given configuration file.
@@ -226,7 +229,8 @@ class RXArm(InterbotixRobot):
         """
         T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
         # print(T)
-        return kinematics.get_pose_from_T(T).tolist()
+        self.ee_pose = kinematics.get_pose_from_T(T).tolist()
+        return self.ee_pose
 
     def get_ee_T(self):
         return kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
@@ -234,8 +238,8 @@ class RXArm(InterbotixRobot):
     def collect_deflect_data(self):
         theta = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         n = 8
-        th_data = np.zeros((n, 5))
-        pose_data = np.zeros((4,4,n))
+        th_data = np.zeros((n+4, 5))
+        pose_data = np.zeros((4,4,n+4))
         for i in range(n):
             # self.set_g_corrected_positions(theta)
             self.set_positions(theta)

@@ -58,6 +58,8 @@ class Camera():
         self.bottom_right = None
         self.arm_top_left = None 
         self.arm_top_right = None
+        self.ee_pose = [0.0 for i in range(6)]
+        self.base = np.array([670, 250])
 
         # RGB colors
         self.colors = list((
@@ -232,7 +234,7 @@ class Camera():
         # calc location of arm
         middle_top = (np.abs(top_left[0] - bottom_right[0]) // 2, top_left[1])
         arm_top_left = (middle_top[0] + top_left[0] - 75, middle_top[1])
-        arm_bottom_right = (middle_top[0] + top_left[0] + 75, top_left[1] + 325)
+        arm_bottom_right = (middle_top[0] + top_left[0] + 75, top_left[1] + 225)
 
         return top_left, bottom_right, arm_top_left, arm_bottom_right
         
@@ -261,7 +263,7 @@ class Camera():
                     TODO: Implement a blob detector to find blocks in the depth image
         """
         lower = 500
-        # print("number of blocks: " + str(len(self.block_info)))
+        print("number of blocks: " + str(len(self.block_info)))
 
         if self.auto_Hinv is None:
             upper = self.rough_Hinv[2, 3]
@@ -279,10 +281,35 @@ class Camera():
         cv2.rectangle(self.VideoFrame, self.top_left, self.bottom_right, (255, 0, 0), 2)
         cv2.rectangle(self.VideoFrame, self.arm_top_left, self.arm_top_right, (255, 0, 0), 2)
 
-        # mask out arm & outside board
+        # mask out arm base & outside board
         mask = np.zeros_like(self.DepthFrameRaw, dtype=np.uint8)
         cv2.rectangle(mask, self.top_left, self.bottom_right, 255, cv2.FILLED)
         cv2.rectangle(mask, self.arm_top_left, self.arm_top_right, 0, cv2.FILLED)
+
+        # mask out rest of arm based on ee pose 
+        w_ee = [self.ee_pose[0]*1000, self.ee_pose[1]*1000, self.ee_pose[2]*1000, 1]
+        w_ee = np.array(w_ee)
+
+        # print(w_ee)
+        z = 1/w_ee[2]
+        if self.auto_Hinv is None:
+            x_c = np.matmul(np.linalg.inv(self.rough_Hinv), w_ee)
+        else:
+            x_c = np.matmul(np.linalg.inv(self.auto_Hinv), w_ee)
+
+        c_ee = np.matmul(self.intrinsic_matrix, x_c[:3])
+        c_ee = c_ee/c_ee[2] 
+
+        a = -90 + 180.0/np.pi * np.arctan2(self.base[1] - c_ee[1], self.base[0] - c_ee[0])
+        h = np.linalg.norm(np.array(self.base) - c_ee[:2]) + 150
+        w = 150.0
+        c = np.mean([np.array(self.base), c_ee[:2]], axis=0)
+
+        box = cv2.boxPoints(((c[0], c[1]), (w, h), a))
+        box = np.int0(box)
+        cv2.drawContours(self.VideoFrame, [box], 0, (255, 0, 0), 2)
+
+        cv2.fillPoly(mask, [box], 0)
         thresh = cv2.bitwise_and(cv2.inRange(self.DepthFrameRaw, lower, upper), mask)
       
         # depending on your version of OpenCV, the following line could be:
@@ -297,7 +324,6 @@ class Camera():
         for contour in contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
             color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
-
             theta = cv2.minAreaRect(contour)[2]
             M = cv2.moments(contour)
 
@@ -305,7 +331,7 @@ class Camera():
                 cx = int(M['m10']/M['m00'])
                 cy = int(M['m01']/M['m00'])
                 cv2.putText(self.VideoFrame, color, (cx-30, cy+40), self.font, 1.0, (0,0,0), thickness=2)
-                # cv2.putText(self.VideoFrame, str(int(theta)), (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+                
                 # print(color, int(theta), cx, cy)
 
                 # draw actual contour
@@ -313,23 +339,36 @@ class Camera():
 
                 # draw bounding box around blocks
                 rect = cv2.minAreaRect(contour)
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                cv2.drawContours(self.VideoFrame, [box], 0, (0, 255, 0), 2)
+                area = rect[1][0]* rect[1][1]
+                # print(area)
+                if area < 3000 and area > 300:
+                    if area>1000:
+                        cv2.putText(self.VideoFrame, 'l', (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+                    else: 
+                        cv2.putText(self.VideoFrame, 's', (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+                    
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    cv2.drawContours(self.VideoFrame, [box], 0, (0, 255, 0), 2)
 
-                # track block info 
-                center = rect[0]
-                if self.to_add(center) is True:
-                    self.block_info.append((self.generate_id(), center, box, theta, color, contour))
+                    # track block info 
+                    center = rect[0]
+                    # if self.to_add(center) is True:
+                    #     self.block_info.append((self.generate_id(), center, box, theta, color, contour))
 
-                # self.block_info.append((1, center, box, theta, color, contour))
+                    self.block_info.append((1, center, box, theta, color, contour))
 
 
 
     def to_add(self, center, thresh=5):
+        center = np.array(center)
         for block in self.block_info:
-            bc = block[1]
-            if np.linalg.norm(center, bc) < thresh:
+            bc = np.array(block[1])
+            # s = np.stack((center, bc))
+            # print(np.array(center))
+            # print(np.array(bc))
+            # print("norm: " + str(np.linalg.norm(center - bc)))
+            if np.linalg.norm(center - bc) < thresh:
                 return False
 
         return True
@@ -339,7 +378,7 @@ class Camera():
         for block in self.block_info:
             if block[0] == id:
                 to_remove = block 
-                print(block[0])
+                print("Removed: " + str(block[0]))
 
         self.block_info.remove(to_remove)
 

@@ -166,6 +166,9 @@ class Gui(QMainWindow):
         self.ui.rdoutTheta.setText(str("%+.2f rad" % (pos[4])))
         self.ui.rdoutPsi.setText(str("%+.2f rad" % (pos[5])))
 
+        # update camera ee pose knowladge
+        self.camera.ee_pose = self.rxarm.ee_pose 
+
     @pyqtSlot(QImage, QImage, QImage)
     def setImage(self, rgb_image, depth_image, tag_image):
         """!
