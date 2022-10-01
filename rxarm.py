@@ -237,14 +237,23 @@ class RXArm(InterbotixRobot):
         th_data = np.zeros((n, 5))
         pose_data = np.zeros((4,4,n))
         for i in range(n):
-            self.set_g_corrected_positions(theta)
+            # self.set_g_corrected_positions(theta)
+            self.set_positions(theta)
             time.sleep(3)
             pose_data[:,:,i] = self.get_ee_T()
             th_data[i,:] = theta
             theta[1] += 0.1
             theta[2] += 0.1
-        np.save('theta_data2', th_data)
-        np.save('pose_data2', pose_data)
+        theta = np.array([0.0, 0.1, -0.1, -1.0, 0.0])
+        for i in range(n,n+4):
+            self.set_positions(theta)
+            time.sleep(3)
+            pose_data[:,:,i] = self.get_ee_T()
+            th_data[i,:] = theta
+            theta[1] += 0.1
+            theta[2] += 0.1
+        np.save('theta_data', th_data)
+        np.save('pose_data', pose_data)
 
     @_ensure_initialized
     def get_wrist_pose(self):
