@@ -212,12 +212,12 @@ def IK_geometric(dh_params, pose):
         a2 = dh_params[1][0]
         a3 = dh_params[2][0]
         c3 = (p3_1[0]**2 + p3_1[1]**2 - a2**2 - a3**2)/(2*a2*a3)
-        try:
+        if (1-c3**2) > 0:
             s3 = np.sqrt(1-c3**2)
             s3 *= (-1)**((i & 0x01)) # pattern is +-+-
             theta[2,i] = -np.arctan2(s3,c3)
-        except:
-            raise Exception("Outside of workspace")
+        else:
+            raise Exception("Outside of dexterous workspace")
 
         #theta 2
         theta[1,i] = -(np.arctan2(p3_1[1],p3_1[0]) - np.arctan2(a3*np.sin(theta[2,i]), a2+a3*np.cos(theta[2,i])))
@@ -259,7 +259,7 @@ def IK_from_top(dh_params, pos, theta=0):
     print(T)
     theta = IK_geometric(dh_params, T)
 
-    if theta[0,0] <= np.pi/2 and theta[0,0] >= -np.pi/2:
+    if theta[0,0] <= 3*np.pi/4 and theta[0,0] >= -3*np.pi/4:
         return theta[:,0]
     else:
         return theta[:,2]
@@ -273,7 +273,7 @@ def IK_from_side(dh_params, pos):
     print(T)
     theta = IK_geometric(dh_params, T)
 
-    if theta[0,0] <= np.pi/2 and theta[0,0] >= -np.pi/2:
+    if theta[0,0] <= 3*np.pi/4 and theta[0,0] >= -3*np.pi/4:
         return theta[:,0]
     else:
         return theta[:,2]

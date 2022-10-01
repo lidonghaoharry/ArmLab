@@ -263,7 +263,7 @@ class Camera():
                     TODO: Implement a blob detector to find blocks in the depth image
         """
         lower = 500
-        print("number of blocks: " + str(len(self.block_info)))
+        # print("number of blocks: " + str(len(self.block_info)))
 
         if self.auto_Hinv is None:
             upper = self.rough_Hinv[2, 3]
@@ -316,12 +316,28 @@ class Camera():
         # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         _, contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        # find contours of the top of stacks 
+        final_contours = []
+        d_offset = 5
+        for contour in contours:
+            theta = cv2.minAreaRect(contour)[2]
+            M = cv2.moments(contour)
+
+            if M['m00'] != 0:
+                mask = np.zeros_like(self.DepthFrameRaw, dtype=np.uint8)
+                cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
+                thresh = cv2.bitwise_and(self.DepthFrameRaw, self.DepthFrameRaw, mask=mask)
+                
+                depth = np.min(thresh[np.nonzero(thresh)])
+
+                thresh = cv2.bitwise_and(cv2.inRange(self.DepthFrameRaw, depth - d_offset, depth + d_offset), mask)
+                _, c, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                final_contours.extend(c)
 
          # convert video frame from rgb to hsv
-        # hsvImg = cv2.cvtColor(self.VideoFrame, cv2.COLOR_BGR2HSV)
-        self.block_info = [] # reset block info every timestep
+        # self.block_info = [] # reset block info every timestep
         # new_blocks = []
-        for contour in contours:
+        for contour in final_contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
             color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
             theta = cv2.minAreaRect(contour)[2]
@@ -341,8 +357,8 @@ class Camera():
                 rect = cv2.minAreaRect(contour)
                 area = rect[1][0]* rect[1][1]
                 # print(area)
-                if area < 3000 and area > 300:
-                    if area>1000:
+                if area > 300:
+                    if area > 1000:
                         cv2.putText(self.VideoFrame, 'l', (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
                     else: 
                         cv2.putText(self.VideoFrame, 's', (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
@@ -353,10 +369,10 @@ class Camera():
 
                     # track block info 
                     center = rect[0]
-                    # if self.to_add(center) is True:
-                    #     self.block_info.append((self.generate_id(), center, box, theta, color, contour))
+                    if self.to_add(center) is True:
+                        self.block_info.append((self.generate_id(), center, box, theta, color, contour))
 
-                    self.block_info.append((1, center, box, theta, color, contour))
+                    # self.block_info.append((1, center, box, theta, color, contour))
 
 
 

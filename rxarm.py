@@ -241,8 +241,8 @@ class RXArm(InterbotixRobot):
         th_data = np.zeros((n+4, 5))
         pose_data = np.zeros((4,4,n+4))
         for i in range(n):
-            # self.set_g_corrected_positions(theta)
-            self.set_positions(theta)
+            self.set_g_corrected_positions(theta)
+            # self.set_positions(theta)
             time.sleep(3)
             pose_data[:,:,i] = self.get_ee_T()
             th_data[i,:] = theta
@@ -250,14 +250,15 @@ class RXArm(InterbotixRobot):
             theta[2] += 0.1
         theta = np.array([0.0, 0.1, -0.1, -1.0, 0.0])
         for i in range(n,n+4):
-            self.set_positions(theta)
+            # self.set_positions(theta)
+            self.set_g_corrected_positions(theta)
             time.sleep(3)
             pose_data[:,:,i] = self.get_ee_T()
             th_data[i,:] = theta
             theta[1] += 0.1
             theta[2] += 0.1
-        np.save('theta_data', th_data)
-        np.save('pose_data', pose_data)
+        np.save('theta_data3', th_data)
+        np.save('pose_data3', pose_data)
 
     @_ensure_initialized
     def get_wrist_pose(self):
@@ -303,17 +304,17 @@ class RXArm(InterbotixRobot):
             id = block[0]
             
         if self.has_block:
-            pos_w[2] += 40
+            pos_w[2] += 20
         else:
-            pos_w[2] += 5
+            pos_w[2] -= 25
 
         approach_point = np.array([pos_w[0], pos_w[1], pos_w[2] + 70])
         joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point, block_angle*np.pi/180)
-        self.set_positions(joint_angles_approach)
+        self.set_g_corrected_positions(joint_angles_approach)
         time.sleep(2)
 
         joint_angles = kinematics.IK_from_top(self.dh_params, pos_w, block_angle*np.pi/180)
-        self.set_positions(joint_angles)
+        self.set_g_corrected_positions(joint_angles)
         time.sleep(2)
 
         if self.has_block:
@@ -324,7 +325,7 @@ class RXArm(InterbotixRobot):
             self.has_block = True
 
         time.sleep(2)
-        self.set_positions(joint_angles_approach)
+        self.set_g_corrected_positions(joint_angles_approach)
 
         return id 
     
@@ -336,11 +337,11 @@ class RXArm(InterbotixRobot):
 
         approach_point = np.array([pos[0], pos[1], pos[2] + 70])
         joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
-        self.set_positions(joint_angles_approach)
+        self.set_g_corrected_positions(joint_angles_approach)
         time.sleep(2)
 
         joint_angles = kinematics.IK_from_side(self.dh_params, pos)
-        self.set_positions(joint_angles)
+        self.set_g_corrected_positions(joint_angles)
         time.sleep(2)
 
         if self.has_block:
@@ -352,6 +353,12 @@ class RXArm(InterbotixRobot):
 
         time.sleep(2)
         self.set_positions(joint_angles_approach)
+
+    def pick_block(self, pos_w, pos_c, block_info, theta=0):
+        try:
+            self.pick_from_top(pos_w, pos_c, block_info, theta)
+        except:
+            self.pick_from_side(pos_w)
 
     def which_block(self, point, block_info):
         ret = -1

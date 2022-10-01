@@ -136,10 +136,10 @@ s_lst = np.array([[0, 0, 1, 0, 0, 0],
 # print("Corr:\n", T_corr)
 # print("diff\n", T_dh-T_corr)
 
-# pose = np.load('pose_data2.npy')
-# theta = np.load('theta_data2.npy')
-# for i in range(theta.shape[0]):
-#     print('theta:\n', theta[i])
-#     T_dh = kinematics.FK_dh(dh_params, theta[i], 5)
-#     print("DH:\n", T_dh)
-#     print("Actual:\n", pose[:,:,i])
+pose = np.load('pose_data3.npy')
+theta = np.load('theta_data3.npy')
+for i in range(theta.shape[0]):
+    print('theta:\n', theta[i])
+    T_dh = kinematics.FK_dh(dh_params, theta[i], 5)
+    print("DH:\n", T_dh)
+    print("Actual:\n", pose[:,:,i])

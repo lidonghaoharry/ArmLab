@@ -261,7 +261,7 @@ class Gui(QMainWindow):
             X_c = [pt.x(), pt.y()]
 
             # tell arm to move to click position
-            id = self.rxarm.pick_from_top(X_w[:3], X_c, self.camera.block_info)
+            id = self.rxarm.pick_block(X_w[:3], X_c, self.camera.block_info)
 
             # remove block from detected blocks
             if id != -1:
