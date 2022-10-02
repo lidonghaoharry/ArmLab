@@ -99,12 +99,15 @@ class RXArm(InterbotixRobot):
                                 [0, 1, 0, -0.30391, 0, 0]])
 
         # max speed (arbitrarily set atm) radians/sec
-        self.max_speed = 0.75
+        self.max_speed = 1.1
         
         self.gearbox_k = np.array([0.0, 0.0194, 0.0819, 0.0, 0.0])
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
+
+        # hyperparam 
+        self.wait_time = 0.5
 
     def initialize(self):
         """!
@@ -291,31 +294,42 @@ class RXArm(InterbotixRobot):
         """
         return self.dh_params
 
-    def pick_from_top(self, pos_w, pos_c, block_info, theta=0):
-        block = self.which_block(pos_c, block_info)
-        # print("which block return: " + str(block))
+    def pick_from_top(self, pos_w, pos_c=None, block_info=None, theta=0, size='l'):
+        if block_info is not None:
+            block = self.which_block(pos_c, block_info)
+            # print("which block return: " + str(block))
 
-        # set gripper angle to the angle of the block
-        if block == -1:
-            block_angle = 0
-            id = -1
+            # set gripper angle to the angle of the block
+            if block == -1:
+                block_angle = 0
+                id = -1
+            else:
+                block_angle = block[1][3]
+                id = block[0]
         else:
-            block_angle = block[1][3]
-            id = block[0]
+            block_angle = theta
             
         if self.has_block:
-            pos_w[2] += 20
+            if size == 'l':
+                pos_w[2] += 10
+            else:
+                pos_w[2] += 5
         else:
-            pos_w[2] -= 25
+            if size == 'l':
+                pos_w[2] -= 25
+            else:
+                pos_w[2] -= 10
 
         approach_point = np.array([pos_w[0], pos_w[1], pos_w[2] + 70])
         joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point, block_angle*np.pi/180)
+        self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
-        time.sleep(2)
+        rospy.sleep(self.moving_time + self.wait_time)
 
         joint_angles = kinematics.IK_from_top(self.dh_params, pos_w, block_angle*np.pi/180)
+        self.set_move_time(joint_angles)
         self.set_g_corrected_positions(joint_angles)
-        time.sleep(2)
+        rospy.sleep(self.moving_time + self.wait_time)
 
         if self.has_block:
             self.open_gripper()
@@ -324,12 +338,13 @@ class RXArm(InterbotixRobot):
             self.close_gripper()
             self.has_block = True
 
-        time.sleep(2)
-        self.set_g_corrected_positions(joint_angles_approach)
+        rospy.sleep(self.wait_time)
 
-        return id 
+        self.set_move_time(joint_angles_approach)
+        self.set_g_corrected_positions(joint_angles_approach)
+        rospy.sleep(self.moving_time + self.wait_time)
     
-    def pick_from_side(self, pos):
+    def pick_from_side(self, pos, size="l"):
         if self.has_block:
             pos[2] += 30
         else:
@@ -337,12 +352,14 @@ class RXArm(InterbotixRobot):
 
         approach_point = np.array([pos[0], pos[1], pos[2] + 70])
         joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
+        self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
-        time.sleep(2)
+        rospy.sleep(self.moving_time + self.wait_time)
 
         joint_angles = kinematics.IK_from_side(self.dh_params, pos)
+        self.set_move_time(joint_angles)
         self.set_g_corrected_positions(joint_angles)
-        time.sleep(2)
+        rospy.sleep(self.moving_time + self.wait_time)
 
         if self.has_block:
             self.open_gripper()
@@ -351,20 +368,24 @@ class RXArm(InterbotixRobot):
             self.close_gripper()
             self.has_block = True
 
-        time.sleep(2)
-        self.set_positions(joint_angles_approach)
+        self.set_move_time(joint_angles_approach)
+        self.set_g_corrected_positions(joint_angles_approach)
+        rospy.sleep(self.moving_time + self.wait_time)
 
-    def pick_block(self, pos_w, pos_c, block_info, theta=0):
+    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l"):
+        print(pos_w)
         try:
-            self.pick_from_top(pos_w, pos_c, block_info, theta)
+            self.pick_from_top(pos_w, pos_c, block_info, theta, size=size)
         except:
-            self.pick_from_side(pos_w)
+            self.pick_from_side(pos_w, size=size)
 
     def which_block(self, point, block_info):
         ret = -1
         # print("point: " + str(point))
 
-        for block in block_info:
+        for id in block_info:
+            block = block_info[id]
+
             # contour = block[3]
             id = block[0]
             box = block[2]
@@ -381,6 +402,15 @@ class RXArm(InterbotixRobot):
         g_forces = kinematics.get_grav(joint_angles, self.S_list)
         corrections = self.gearbox_k * g_forces
         self.set_positions(joint_angles + corrections)
+
+    def set_move_time(self, new_pose):
+        curr_pose = self.get_positions()
+        # print("curr pose: " + str(curr_pose))
+        # print("waypoint: " + str(new_pose))
+        d = np.abs(np.array(curr_pose) - np.array(new_pose))
+        m = np.max(d)
+    
+        self.moving_time = (m / self.max_speed) + self.wait_time
 
 
 

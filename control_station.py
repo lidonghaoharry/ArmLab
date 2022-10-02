@@ -112,7 +112,10 @@ class Gui(QMainWindow):
         self.ui.btnUser8.setText("Replay Waypoints")
         self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'replay'))
 
-        self.ui.btnUser9.clicked.connect(self.rxarm.collect_deflect_data)
+        self.ui.btnUser9.setText("Event 1")
+        self.ui.btnUser9.clicked.connect(partial(nxt_if_arm_init, 'event1'))
+        self.ui.btnUser10.setText("Event 2")
+        self.ui.btnUser10.clicked.connect(partial(nxt_if_arm_init, 'event2'))
 
         # Sliders
         for sldr in self.joint_sliders:

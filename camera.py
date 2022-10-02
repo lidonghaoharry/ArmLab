@@ -47,7 +47,8 @@ class Camera():
         """ block info """
         self.block_contours = np.array([])
         self.block_detections = np.array([])
-        self.block_info = []
+        # self.block_info = []
+        self.block_info = {}
         self.ids = []
 
         # image for template matching
@@ -263,7 +264,6 @@ class Camera():
                     TODO: Implement a blob detector to find blocks in the depth image
         """
         lower = 500
-        # print("number of blocks: " + str(len(self.block_info)))
 
         if self.auto_Hinv is None:
             upper = self.rough_Hinv[2, 3]
@@ -318,7 +318,7 @@ class Camera():
 
         # find contours of the top of stacks 
         final_contours = []
-        d_offset = 5
+        d_offset = 10
         for contour in contours:
             theta = cv2.minAreaRect(contour)[2]
             M = cv2.moments(contour)
@@ -335,8 +335,7 @@ class Camera():
                 final_contours.extend(c)
 
          # convert video frame from rgb to hsv
-        # self.block_info = [] # reset block info every timestep
-        # new_blocks = []
+        added_ids = []
         for contour in final_contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
             color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
@@ -359,8 +358,10 @@ class Camera():
                 # print(area)
                 if area > 300:
                     if area > 1000:
-                        cv2.putText(self.VideoFrame, 'l', (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
+                        size = 'l'
+                        cv2.putText(self.VideoFrame, size, (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
                     else: 
+                        size = 's'
                         cv2.putText(self.VideoFrame, 's', (cx, cy), self.font, 0.5, (255,255,255), thickness=2)
                     
                     box = cv2.boxPoints(rect)
@@ -369,34 +370,80 @@ class Camera():
 
                     # track block info 
                     center = rect[0]
-                    if self.to_add(center) is True:
-                        self.block_info.append((self.generate_id(), center, box, theta, color, contour))
+                    id = self.to_add(center)
+                    if id is None:
+                        id = self.generate_id()
+                        depth = self.DepthFrameRaw[int(center[1]), int(center[0])]
+                        self.block_info[id] = (id, center, box, theta, color, contour, size, depth)
+           
+                    # display id
+                    # cv2.putText(self.VideoFrame, str(id), (cx+30, cy+30), self.font, 0.5, (255,255,255), thickness=2)
+
+                    # track ids that have been detected on the current timestep
+                    added_ids.append(id)
 
                     # self.block_info.append((1, center, box, theta, color, contour))
 
+        # delete block info not detected on current timestep
+        self.delete_blocks(added_ids)
 
+        # print("number of blocks: " + str(len(self.block_info)))
+
+    def positive_blocks(self):
+        p_blocks = {}
+        for id in self.block_info:
+            block = self.block_info[id]
+            center = block[1]
+            depth = block[7]
+
+            # convert to world to check half plane 
+            center = [center[0], center[1], 1]
+            pos_w = self.to_world_coords(depth, center)
+
+            if pos_w[1] > 0:
+                p_blocks[id] = (id, pos_w, block[2], block[3], block[4], block[5], block[6], block[7])
+
+        return p_blocks
 
     def to_add(self, center, thresh=5):
+        min = 10000000
+        min_id = None 
+
         center = np.array(center)
-        for block in self.block_info:
+        for id in self.block_info:
+            block = self.block_info[id]
             bc = np.array(block[1])
+
             # s = np.stack((center, bc))
             # print(np.array(center))
             # print(np.array(bc))
             # print("norm: " + str(np.linalg.norm(center - bc)))
-            if np.linalg.norm(center - bc) < thresh:
-                return False
 
-        return True
+            # track id of closest block
+            dist = np.linalg.norm(center - bc)
+            if dist < min:
+                min = dist 
+                min_id = id
 
-    def remove_block(self, id):
-        to_remove = None
-        for block in self.block_info:
-            if block[0] == id:
-                to_remove = block 
-                print("Removed: " + str(block[0]))
+        if min > thresh:
+            return None
+                
+        return min_id
 
-        self.block_info.remove(to_remove)
+    def delete_blocks(self, added_ids):
+        to_delete = []
+        for id in self.block_info:
+            if id not in added_ids:
+                to_delete.append(id)
+        
+        for id in to_delete:
+            del self.block_info[id]
+
+    def get_height_img(self):
+        img = self.auto_Hinv[2, 3] - self.DepthFrameRaw
+        print(self.auto_Hinv[2, 3])
+        print(img.shape)
+        return img
 
     def generate_id(self):
         id = random.randint(0, 100000)
@@ -415,6 +462,17 @@ class Camera():
             X_w = np.matmul(self.auto_Hinv, X_c)
 
         return X_w
+
+    def to_camera_coords(self, w_c):
+        if self.auto_Hinv is None:
+            x_c = np.matmul(np.linalg.inv(self.rough_Hinv), w_c)
+        else:
+            x_c = np.matmul(np.linalg.inv(self.auto_Hinv), w_c)
+
+        c_c = np.matmul(self.intrinsic_matrix, x_c[:3])
+        c_c = c_c/c_c[2] 
+
+        return c_c
 
     def auto_calibrate(self):
         self.tag_detections = self.tag_detections.T * 1000

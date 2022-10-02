@@ -5,6 +5,7 @@ from PyQt4.QtCore import (QThread, Qt, pyqtSignal, pyqtSlot, QTimer)
 import time
 import numpy as np
 import rospy
+from collections import OrderedDict
 
 class StateMachine():
     """!
@@ -39,8 +40,13 @@ class StateMachine():
             [0.0,             0.0,     0.0,      0.0,     0.0]]
         self.recorded_positions = []
 
-        # hyperparam 
-        self.wait_time = 0.5
+        # dictionary mapping locations to the number of blocks stacked there
+        self.r_slot_dict = OrderedDict()
+        self.l_slot_dict = OrderedDict()
+
+        self.REG_BLOCK_HEIGHT = 40
+        self.SMALL_BLOCK_HEIGHT = 20
+
 
     def set_next_state(self, state):
         """!
@@ -86,6 +92,12 @@ class StateMachine():
         
         if self.next_state == "replay":
             self.replay_waypoints()
+        
+        if self.next_state == "event1":
+            self.event1()
+
+        if self.next_state == "event2":
+            self.event2()
 
 
     """Functions run for each state"""
@@ -111,6 +123,158 @@ class StateMachine():
         self.status_message = "EMERGENCY STOP - Check rxarm and restart program"
         self.current_state = "estop"
         self.rxarm.disable_torque()
+
+    def event1(self):
+        self.l_slot_dict[(-125, -75)] = 0
+        self.l_slot_dict[(-175, -75)] = 0
+        self.l_slot_dict[(-225, -75)] = 0
+        self.l_slot_dict[(-275, -75)] = 0
+        self.l_slot_dict[(-325, -75)] = 0
+
+        self.r_slot_dict[(125, -75)] = 0
+        self.r_slot_dict[(175, -75)] = 0
+        self.r_slot_dict[(225, -75)] = 0
+        self.r_slot_dict[(275, -75)] = 0
+        self.r_slot_dict[(325, -75)] = 0
+
+        # iterate while blocks exist in pos half plane 
+        p_blocks = self.camera.positive_blocks()
+        while len(p_blocks) > 0:
+            id = p_blocks.keys()[0]
+            block = p_blocks[id]
+            size = block[6]
+
+            # convert to world coords
+            b_pos_w = block[1]
+
+            # move to pick up block
+            theta = block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            # place block in correct slot
+            if size == 'l':
+                coord, d = self.min_slot(self.r_slot_dict)
+                self.r_slot_dict[coord] += self.REG_BLOCK_HEIGHT
+            else:
+                coord, d  = self.min_slot(self.l_slot_dict)
+                self.l_slot_dict[coord] += self.SMALL_BLOCK_HEIGHT
+
+            coord = np.array([coord[0], coord[1], d], dtype=np.float)
+            self.rxarm.pick_block(coord, theta=90, size=size)
+        
+            # get new set of blocks
+            p_blocks = self.camera.positive_blocks()
+
+        self.next_state = "idle"
+
+    def event2(self):
+        self.l_slot_dict[(-125, 50)] = 0
+        self.l_slot_dict[(-200, 50)] = 0
+        self.l_slot_dict[(-275, 50)] = 0
+        self.l_slot_dict[(-325, 50)] = 0
+
+        self.r_slot_dict[(275, -75)] = 0
+        self.r_slot_dict[(200, -75)] = 0
+        self.r_slot_dict[(125, -75)] = 0
+
+        # unstack blocks 
+        self.unstack_all()
+
+        p_blocks = self.camera.positive_blocks()
+        while len(p_blocks) > 0:
+            block = self.get_large_block(p_blocks)
+            if block is None:
+                id = p_blocks.keys()[0]
+                block = p_blocks[id]
+            size = block[6]
+
+            # convert to world coords
+            b_pos_w = block[1]
+
+            # move to pick up block
+            theta = block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            # place block in correct slot
+            coord, d = self.min_slot(self.r_slot_dict, self.camera.get_height_img())
+            # if size == 'l':
+            #     self.r_slot_dict[coord] += self.REG_BLOCK_HEIGHT
+            # else:
+            #     self.r_slot_dict[coord] += self.SMALL_BLOCK_HEIGHT
+
+            coord = np.array([coord[0], coord[1], d], dtype=np.float)
+            self.rxarm.pick_block(coord, theta=90, size=size)
+        
+            # get new set of blocks
+            p_blocks = self.camera.positive_blocks()
+
+        self.next_state = "idle"
+
+    def unstack_all(self):
+        p_blocks = self.camera.positive_blocks()
+        s_block = self.get_stacked_block(p_blocks)
+
+        while s_block is not None:
+            # convert to world coords
+            s_pos_w = s_block[1]
+            size = s_block[6]
+
+            # pick up block
+            theta = s_block[3]
+            self.rxarm.pick_block(np.array(s_pos_w[:3]), theta=theta, size=size)
+
+            coord, d = self.min_slot(self.l_slot_dict, self.camera.get_height_img())
+
+            # if size == 'l':
+            #     self.l_slot_dict[coord] += self.REG_BLOCK_HEIGHT
+            # else:
+            #     self.l_slot_dict[coord] += self.SMALL_BLOCK_HEIGHT
+
+            coord = np.array([coord[0], coord[1], d], dtype=np.float)
+            self.rxarm.pick_block(coord, theta=-90, size=size)
+
+            # get new block to unstack
+            p_blocks = self.camera.positive_blocks()
+            s_block = self.get_stacked_block(p_blocks)
+
+
+            
+    def get_stacked_block(self, blocks):
+        ret = None 
+        for id in blocks:
+            block = blocks[id]
+
+            if block[1][2] > self.REG_BLOCK_HEIGHT:
+                # print(block)
+                ret = block 
+
+        return ret
+
+    def get_large_block(self, blocks):
+        ret = None 
+        for id in blocks:
+            block = blocks[id]
+
+            if block[6] == 'l':
+                # print(block)
+                ret = block 
+
+        return ret
+                
+    def min_slot(self, s_dict, height_img):
+        min = 10000
+        min_id = None
+        for coord in s_dict:
+            w_c = [coord[0], coord[1], 0, 1]
+            cam_coord = self.camera.to_camera_coords(w_c)
+            print(height_img[int(cam_coord[1]) - 10: int(cam_coord[1]) + 10, int(cam_coord[0]) - 10: int(cam_coord[0]) + 10].shape)
+            num = np.max(height_img[int(cam_coord[1]) - 10: int(cam_coord[1]) + 10, int(cam_coord[0]) - 10: int(cam_coord[0]) + 10])
+            print("min slot height: " + str(num))
+            if num < min:
+                min = num
+                min_id = coord
+
+        return min_id, min
 
     def execute(self):
         """!
@@ -143,32 +307,21 @@ class StateMachine():
         for i,waypoint in enumerate(self.recorded_positions):
             arm_pose, gripper_state = waypoint
 
-            self.rxarm.moving_time = self.calc_time(self.rxarm.get_positions(), arm_pose)
+            self.rxarm.set_move_time(arm_pose)
 
             # move arm 
             self.rxarm.set_positions(arm_pose)
-            rospy.sleep(self.rxarm.moving_time + self.wait_time)
+            rospy.sleep(self.rxarm.moving_time + self.rxarm.wait_time)
 
             # open/close gripper
             if gripper_state == True:
                 self.rxarm.open_gripper()
-                rospy.sleep(self.wait_time)
+                rospy.sleep(self.rxarm.wait_time)
             else:
                 self.rxarm.close_gripper()
-                rospy.sleep(self.wait_time)
+                rospy.sleep(self.rxarm.wait_time)
             
-
-
         self.next_state = "idle"
-
-    def calc_time(self, curr_pose, pose):
-        print("curr pose: " + str(curr_pose))
-        print("waypoint: " + str(pose))
-
-        d = np.abs(np.array(curr_pose) - np.array(pose))
-        m = np.max(d)
-    
-        return m / self.rxarm.max_speed
 
     def teach(self):
         '''teach and repeat state'''
