@@ -99,7 +99,7 @@ def get_euler_angles_from_T(T):
     @return     The euler angles from T.
     """
     rot = R.from_dcm(T[:3,:3])
-    # rot = R.from_matrix(T[:3,:3])
+    # rot = R.from_matrix(T[:3,:3]) for python 3
     return rot.as_euler('ZYZ')
 
 
@@ -112,7 +112,7 @@ def get_pose_from_T(T):
 
     @param      T     transformation matrix
 
-    @return     The pose from T.
+    @return     The pose from T as [x,y,z,phi,theta,psi].
     """
     pos = T[:3,3]
     ang = get_euler_angles_from_T(T)
@@ -162,12 +162,20 @@ def to_s_matrix(w, v):
     return S
 
 def to_skew_symetric(x):
+    '''
+    Returns skew symetric representation of 3-vector x
+    '''
     m = np.array([[0, -x[2], x[1]],
                   [x[2], 0, -x[0]],
                   [-x[1], x[0], 0]])
     return m
 
 def inv_transform(T):
+    '''
+    @param T 4x4 transformation matrix
+
+    @return T_inv The inverse of that transformation matrix
+    '''
     rotM = T[:3,:3]
     T_inv = np.zeros((4,4))
     T_inv[3,3] = 1
@@ -175,19 +183,19 @@ def inv_transform(T):
     T_inv[:3,3] = -np.matmul(rotM.T,T[:3,3])
     return T_inv
 
-def IK_geometric(dh_params, pose):
+def IK_geometric(dh_params, T):
     """!
     @brief      Get all possible joint configs that produce the pose.
 
                 TODO: Convert a desired end-effector pose as np.array x,y,z,phi to joint angles
 
     @param      dh_params  The dh parameters
-    @param      pose       The desired pose as np.array x,y,z,phi
+    @param      T       The desired pose as a transformation matrix
 
     @return     All four possible joint configurations in a numpy array 4x4 where each row is one possible joint
                 configuration
     """
-    T50 = pose
+    T50 = T
     theta = np.zeros((5,4))
     for i in range(4):
         # theta 1
@@ -212,6 +220,7 @@ def IK_geometric(dh_params, pose):
         a2 = dh_params[1][0]
         a3 = dh_params[2][0]
         c3 = (p3_1[0]**2 + p3_1[1]**2 - a2**2 - a3**2)/(2*a2*a3)
+        #check if the desired position is possible for th arm to reach
         if (1-c3**2) > 0:
             s3 = np.sqrt(1-c3**2)
             s3 *= (-1)**((i & 0x01)) # pattern is +-+-
@@ -240,7 +249,7 @@ def IK_geometric(dh_params, pose):
         theta[4,i] = np.arctan2(R53[2,0], R53[2,1])
         theta[3,i] = np.arctan2(R53[0,2], -R53[1,2])
 
-
+        # correct for differences between DH zero and motor zero positions
         theta[0,i] -= np.pi/2
         theta[1,i] += np.arctan2(200,50)
         theta[2,i] += np.arctan2(200,50)
@@ -252,6 +261,16 @@ def IK_geometric(dh_params, pose):
 
 
 def IK_from_top(dh_params, pos, theta=0):
+    '''
+    Picks up a block with the gripper pointing down
+
+    @param dh_params DH table
+    @param pos desired [x,y,z] position
+    @param theta rotation around the world z axis, defaults to zero
+
+    @return theta a vector of angles for the joints
+    
+    '''
     rot = R.from_euler("ZYZ", [-theta, np.pi, np.pi/2])
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
@@ -265,6 +284,16 @@ def IK_from_top(dh_params, pos, theta=0):
         return theta[:,2]
 
 def IK_from_side(dh_params, pos):
+    '''
+    Picks up a block with the gripper pointing to the side
+
+    @param dh_params DH table
+    @param pos desired [x,y,z] position
+    @param theta rotation around the world z axis, defaults to zero
+
+    @return theta a vector of angles for the joints
+    
+    '''
     alpha = np.arctan2(pos[1],pos[0])
     rot = R.from_euler("ZYZ", [alpha-np.pi, -np.pi/2, 0])
     T = np.eye(4)
@@ -304,11 +333,11 @@ def IK_6dof(dh_params, pose):
         a2 = dh_params[1][0]
         d4 = dh_params[3][2]
         c3 = (p4_1[0]**2 + p4_1[1]**2 - a2**2 - d4**2)/(2*a2*d4)
-        s3 = np.sqrt(1-c3**2)
-        s3 *= (-1)**((i & 0x02) >> 1) # pattern is ++--++--
-        try:
+        if 1-c3**2>=0:
+            s3 = np.sqrt(1-c3**2)
+            s3 *= (-1)**((i & 0x02) >> 1) # pattern is ++--++--
             theta[2,i] = np.pi/2 - np.arctan2(s3,c3)
-        except:
+        else:
             raise Exception("Outside of workspace")
 
         #theta 2
@@ -354,6 +383,12 @@ def IK_6dof(dh_params, pose):
 
 
 def get_grav(theta, s_lst):
+    '''
+    Return the torque each joint needs to overcome gravity
+
+    @param theta the joint angles of the arm
+    @param s_lst screw vectors
+    '''
     M01 = np.array([[1, 0, 0, 0],
                     [0, 1, 0, 0],
                     [0, 0, 1, 0.10391],
