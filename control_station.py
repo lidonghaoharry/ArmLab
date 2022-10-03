@@ -171,6 +171,8 @@ class Gui(QMainWindow):
 
         # update camera ee pose knowladge
         self.camera.ee_pose = self.rxarm.ee_pose 
+        self.camera.wrist_pos = self.rxarm.wrist_pos
+        self.camera.elbow_pos = self.rxarm.elbow_pos
 
     @pyqtSlot(QImage, QImage, QImage)
     def setImage(self, rgb_image, depth_image, tag_image):

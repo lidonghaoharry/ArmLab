@@ -105,6 +105,9 @@ class RXArm(InterbotixRobot):
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
+        # x, y, z location of wrist and elbow
+        self.wrist_pos = np.zeros(3)
+        self.elbow_pos = np.zeros(3)
 
         # hyperparam 
         self.wait_time = 0.5
@@ -230,7 +233,7 @@ class RXArm(InterbotixRobot):
 
         @return     The EE pose as [x, y, z, phi, theta, psi]
         """
-        T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints)
+        T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints, self.wrist_pos, self.elbow_pos)
         # print(T)
         self.ee_pose = kinematics.get_pose_from_T(T).tolist()
         return self.ee_pose

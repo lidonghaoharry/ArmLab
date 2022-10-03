@@ -60,6 +60,8 @@ class Camera():
         self.arm_top_left = None 
         self.arm_top_right = None
         self.ee_pose = [0.0 for i in range(6)]
+        self.wrist_pos = np.zeros(3)
+        self.elbow_pos = np.zeros(3)
         self.base = np.array([670, 250])
 
         # RGB colors
@@ -256,6 +258,42 @@ class Camera():
                 min_dist = (d, label["id"])
         return min_dist[1] 
 
+    def add_arm_to_mask(self, mask):
+        '''
+        add the arm to a mask based on FK values 
+        '''
+        w_ee = [self.ee_pose[0]*1000, self.ee_pose[1]*1000, self.ee_pose[2]*1000, 1]
+        w_ee = np.array(w_ee)
+
+        # print(w_ee)
+        #find ee, wrist and elbow locations in camera coords
+        c_ee = self.to_camera_coords(w_ee)
+        c_wrist = self.to_camera_coords(self.wrist_pos)
+        c_elbow = self.to_camera_coords(self.elbow_pos)
+
+        #create and draw the box
+        a = -90 + 180.0/np.pi * np.arctan2(self.base[1] - c_ee[1], self.base[0] - c_ee[0])
+        h = np.linalg.norm(np.array(self.base) - c_ee[:2]) + 150
+        w = 150.0
+        c = np.mean([np.array(self.base), c_ee[:2]], axis=0)
+
+        box = cv2.boxPoints(((c[0], c[1]), (w, h), a))
+        box = np.int0(box)
+        cv2.drawContours(self.VideoFrame, [box], 0, (255, 0, 0), 2)
+        cv2.fillPoly(mask, [box], 0)
+
+        #check if the wrist and elbow are outside the created mask
+        if mask[c_wrist[0], c_wrist[1]] > 0 or mask[c_elbow[0], c_elbow[1]] > 0:
+            #if it is outside make a new box that covers it
+            a = -90 + 180.0/np.pi * np.arctan2(c_elbow[1] - c_wrist[1], c_elbow[0] - c_wrist[0])
+            h = np.linalg.norm(c_elbow[:2] - c_wrist[:2]) + 150
+            w = 150.0
+            c = np.mean([c_elbow[:2], c_wrist[:2]], axis=0)
+
+            box = cv2.boxPoints(((c[0], c[1]), (w, h), a))
+            box = np.int0(box)
+            cv2.drawContours(self.VideoFrame, [box], 0, (255, 0, 0), 2)
+            cv2.fillPoly(mask, [box], 0)
 
     def detectBlocksInDepthImage(self):
         """!
@@ -287,29 +325,8 @@ class Camera():
         cv2.rectangle(mask, self.arm_top_left, self.arm_top_right, 0, cv2.FILLED)
 
         # mask out rest of arm based on ee pose 
-        w_ee = [self.ee_pose[0]*1000, self.ee_pose[1]*1000, self.ee_pose[2]*1000, 1]
-        w_ee = np.array(w_ee)
-
-        # print(w_ee)
-        z = 1/w_ee[2]
-        if self.auto_Hinv is None:
-            x_c = np.matmul(np.linalg.inv(self.rough_Hinv), w_ee)
-        else:
-            x_c = np.matmul(np.linalg.inv(self.auto_Hinv), w_ee)
-
-        c_ee = np.matmul(self.intrinsic_matrix, x_c[:3])
-        c_ee = c_ee/c_ee[2] 
-
-        a = -90 + 180.0/np.pi * np.arctan2(self.base[1] - c_ee[1], self.base[0] - c_ee[0])
-        h = np.linalg.norm(np.array(self.base) - c_ee[:2]) + 150
-        w = 150.0
-        c = np.mean([np.array(self.base), c_ee[:2]], axis=0)
-
-        box = cv2.boxPoints(((c[0], c[1]), (w, h), a))
-        box = np.int0(box)
-        cv2.drawContours(self.VideoFrame, [box], 0, (255, 0, 0), 2)
-
-        cv2.fillPoly(mask, [box], 0)
+        self.add_arm_to_mask(mask)
+        
         thresh = cv2.bitwise_and(cv2.inRange(self.DepthFrameRaw, lower, upper), mask)
       
         # depending on your version of OpenCV, the following line could be:

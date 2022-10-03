@@ -27,7 +27,7 @@ def clamp(angle):
     return angle
 
 
-def FK_dh(dh_params, joint_angles, link):
+def FK_dh(dh_params, joint_angles, link, wrist_pos_ref=None, elbow_pos_ref=None):
     """!
     @brief      Get the 4x4 transformation matrix from link to world
 
@@ -43,6 +43,8 @@ def FK_dh(dh_params, joint_angles, link):
                               theta]
     @param      joint_angles  The joint angles of the links
     @param      link          The link to transform from
+    @param      wrist_pos_ref  Reference to nparray where [x,y,z] of the wrist is stored
+    @param      elbow_pos_ref  Reference to nparray where [x,y,z] of the wrist is stored
 
     @return     a transformation matrix representing the pose of the desired link
     """
@@ -62,6 +64,12 @@ def FK_dh(dh_params, joint_angles, link):
 
         Ti = get_transform_from_dh(dh_params[i][0], dh_params[i][1], dh_params[i][2], theta[i])
         T = np.matmul(T,Ti)
+
+        #modify the passed nparrays with the locations of the wrist and elbow
+        if i==1 and elbow_pos_ref is not None:
+            elbow_pos_ref[:3] = T[:3,3]
+        elif i==2 and elbow_pos_ref is not None:
+            wrist_pos_ref[:3] = T[:3,3]
 
     return T
 
