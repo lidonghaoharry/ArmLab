@@ -220,20 +220,24 @@ class StateMachine():
         self.next_state = "idle"
 
     def event3(self):
+        '''
+        line up small and large blocks by color
+        '''
         l_drop_pos = np.array([-325.0,-75.0, 0.0])
         r_drop_pos = np.array([325.0,-75.0, 0.0])
 
         #move everything to positive half plane
         self.move_all_positive()
         
-        #unstack everything
+        #unstack everything into the positive half-plane
         self.unstack_all(rand_pos=True)
 
         #move the arm out off the way so all blocks are visible
         self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
         
         #sort the large blocks
-        l_block = self.find_next_block(self.camera.block_info, 'l')
+        p_blocks = self.camera.positive_blocks()
+        l_block = self.find_next_block(p_blocks, 'l')
         while l_block is not None:
             size = l_block[6]
             b_pos_w = l_block[1]
@@ -243,10 +247,12 @@ class StateMachine():
             self.rxarm.pick_block(r_drop_pos, theta=90, size=size, x_offset = -50) #approach from the side a bit
             r_drop_pos[1] -= 40
             #get the next large block by color
-            l_block = self.find_next_block(self.camera.block_info, 'l')
+            p_blocks = self.camera.positive_blocks()
+            l_block = self.find_next_block(p_blocks, 'l')
 
         #sort the small blocks
-        s_block = self.find_next_block(self.camera.block_info, 's')
+        p_blocks = self.camera.positive_blocks()
+        s_block = self.find_next_block(p_blocks, 's')
         while s_block is not None:
             size = s_block[6]
             b_pos_w = s_block[1]
@@ -256,7 +262,8 @@ class StateMachine():
             self.rxarm.pick_block(l_drop_pos, theta=90, size=size, x_offset = 50) #approach from the side a bit
             l_drop_pos[1] += 40
             #get the next small block by color
-            s_block = self.find_next_block(self.camera.block_info, 's')
+            p_blocks = self.camera.positive_blocks()
+            s_block = self.find_next_block(p_blocks, 's')
 
         self.next_state = 'idle'
 
