@@ -99,6 +99,9 @@ class StateMachine():
         if self.next_state == "event2":
             self.event2()
 
+        if self.next_state == "event3":
+            self.event3()
+
 
     """Functions run for each state"""
 
@@ -216,7 +219,48 @@ class StateMachine():
 
         self.next_state = "idle"
 
-    def unstack_all(self):
+    def event3(self):
+        l_drop_pos = np.array([-325.0,-75.0, 0.0])
+        r_drop_pos = np.array([325.0,-75.0, 0.0])
+
+        #move everything to positive half plane
+        self.move_all_positive()
+        
+        #unstack everything
+        self.unstack_all(rand_pos=True)
+
+        #move the arm out off the way so all blocks are visible
+        self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+        
+        #sort the large blocks
+        l_block = self.find_next_block(self.camera.block_info, 'l')
+        while l_block is not None:
+            size = l_block[6]
+            b_pos_w = l_block[1]
+            theta = l_block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            self.rxarm.pick_block(r_drop_pos, theta=90, size=size, x_offset = -50) #approach from the side a bit
+            r_drop_pos[1] -= 40
+            #get the next large block by color
+            l_block = self.find_next_block(self.camera.block_info, 'l')
+
+        #sort the small blocks
+        s_block = self.find_next_block(self.camera.block_info, 's')
+        while s_block is not None:
+            size = s_block[6]
+            b_pos_w = s_block[1]
+            theta = s_block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            self.rxarm.pick_block(l_drop_pos, theta=90, size=size, x_offset = 50) #approach from the side a bit
+            l_drop_pos[1] += 40
+            #get the next small block by color
+            s_block = self.find_next_block(self.camera.block_info, 's')
+
+        self.next_state = 'idle'
+
+    def unstack_all(self, rand_pos=False):
         p_blocks = self.camera.positive_blocks()
         s_block = self.get_stacked_block(p_blocks)
 
@@ -229,19 +273,78 @@ class StateMachine():
             theta = s_block[3]
             self.rxarm.pick_block(np.array(s_pos_w[:3]), theta=theta, size=size)
 
-            coord = self.min_slot(self.l_slot_dict, self.camera.get_height_img(), self.camera.block_info)
+            if rand_pos:
+                coord = self.get_random_drop_pos(p_blocks)
+                self.rxarm.pick_block(coord, theta=0, size=size)
+            else:
+                coord = self.min_slot(self.l_slot_dict, self.camera.get_height_img(), self.camera.block_info)
 
-            # if size == 'l':
-            #     self.l_slot_dict[coord] += self.REG_BLOCK_HEIGHT
-            # else:
-            #     self.l_slot_dict[coord] += self.SMALL_BLOCK_HEIGHT
+                # if size == 'l':
+                #     self.l_slot_dict[coord] += self.REG_BLOCK_HEIGHT
+                # else:
+                #     self.l_slot_dict[coord] += self.SMALL_BLOCK_HEIGHT
 
-            # coord = np.array([coord[0], coord[1], d], dtype=np.float)
-            self.rxarm.pick_block(coord, theta=-90, size=size)
+                # coord = np.array([coord[0], coord[1], d], dtype=np.float)
+                self.rxarm.pick_block(coord, theta=-90, size=size)
 
             # get new block to unstack
             p_blocks = self.camera.positive_blocks()
             s_block = self.get_stacked_block(p_blocks)
+
+    def move_all_positive(self):
+        '''
+        move all blocks into the positive half plane
+        '''
+        n_blocks = self.camera.negative_blocks(y_cutoff=25)
+        while n_blocks is not None:
+            id = n_blocks.keys()[0]
+            block = n_blocks[id]
+            pos_w = block[1]
+            size = block[6]
+            theta = block[3]
+
+            #pick up the block
+            self.rxarm.pick_block(np.array(pos_w[:3]), theta=theta, size=size)
+
+            #find a spot to put it
+            pos = self.get_random_drop_pos(self.camera.block_info)
+            self.rxarm.pick_block(pos, theta=0, size=size)
+            
+            n_blocks = self.camera.negative_blocks(y_cutoff=50)
+
+    def get_random_drop_pos(self, blocks):
+        '''
+        finds an open drop location near the arm 
+
+        returns last tried if it didn't work
+        '''
+        for _ in range(100):
+            x = np.random.randint(-200, 200)
+            y = np.random.randint(100, 275)
+            point_w = np.array([x,y,0])
+            point_c = self.camera.to_camera_coords(point_w)
+            if self.rxarm.which_block(point_c, blocks) == -1:
+                return point_w
+        print("no valid location found")
+        return point_w
+    
+    def find_next_block(self, blocks, size):
+        '''
+        returns the next block by color of a particular size
+        '''
+        color_ids = {'red':0, 'orange':1, 'yellow':2, 'green':3, 'blue':4, 'violet':5}
+        ret = None
+        min_color_id = -1
+        for id in blocks:
+            block = blocks[id]
+
+            if block[6] == size:
+                block_color = block[4]
+                color_id = color_ids[block_color]
+                if color_id < min_color_id:
+                    ret = block 
+
+        return ret
 
     def get_stacked_block(self, blocks):
         ret = None 

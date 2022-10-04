@@ -2,8 +2,8 @@ import numpy as np
 from scipy.optimize import least_squares
 import kinematics
 
-th_data = np.load('theta_data.npy')
-pose_data = np.load('pose_data.npy')
+th_data = np.load('theta_data4.npy')
+pose_data = np.load('pose_data4.npy')
 
 dh_params = np.array([[0, -np.pi/2, 0.10391, 0],
                       [.20573, np.pi, 0, 0],

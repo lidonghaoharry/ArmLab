@@ -298,7 +298,7 @@ class RXArm(InterbotixRobot):
         """
         return self.dh_params
 
-    def pick_from_top(self, pos_w, pos_c=None, block_info=None, theta=0, size='l'):
+    def pick_from_top(self, pos_w, pos_c=None, block_info=None, theta=0, size='l', x_offset=0):
         if block_info is not None:
             block = self.which_block(pos_c, block_info)
             # print("which block return: " + str(block))
@@ -324,7 +324,7 @@ class RXArm(InterbotixRobot):
             else:
                 pos_w[2] -= 10
 
-        approach_point = np.array([pos_w[0], pos_w[1], pos_w[2] + 70])
+        approach_point = np.array([pos_w[0] + x_offset, pos_w[1], pos_w[2] + 70])
         joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point, block_angle*np.pi/180)
         self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
@@ -348,7 +348,7 @@ class RXArm(InterbotixRobot):
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
     
-    def pick_from_side(self, pos, size="l"):
+    def pick_from_side(self, pos, size="l", x_offset=0):
         if self.has_block:
             pos[2] += 30
         else:
@@ -360,7 +360,7 @@ class RXArm(InterbotixRobot):
         
         alpha = np.arctan2(pos[1],pos[0])
         offset_dist = 50
-        approach_point = np.array([pos[0] - offset_dist*np.cos(alpha), pos[1] - offset_dist*np.sin(alpha), pos[2] + 70])
+        approach_point = np.array([pos[0] - offset_dist*np.cos(alpha) + x_offset, pos[1] - offset_dist*np.sin(alpha), pos[2] + 70])
         joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
         self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
@@ -391,12 +391,12 @@ class RXArm(InterbotixRobot):
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
 
-    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l"):
+    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l", x_offset=0):
         print(pos_w)
         try:
-            self.pick_from_top(pos_w, pos_c, block_info, theta, size=size)
+            self.pick_from_top(pos_w, pos_c, block_info, theta, size=size, x_offset=x_offset)
         except:
-            self.pick_from_side(pos_w, size=size)
+            self.pick_from_side(pos_w, size=size, x_offset=x_offset)
 
     def move_to_pos(self, pos, theta=0):
         try:
