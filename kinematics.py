@@ -67,7 +67,7 @@ def FK_dh(dh_params, joint_angles, link, wrist_pos_ref=None, elbow_pos_ref=None)
 
         #modify the passed nparrays with the locations of the wrist and elbow
         if i==1 and elbow_pos_ref is not None:
-            elbow_pos_ref[:3] = T[:3,3]
+            elbow_pos_ref[:3] = T[:3,3] + T[:3,1]*0.05 #offset in y to estimate farthest point
         elif i==2 and elbow_pos_ref is not None:
             wrist_pos_ref[:3] = T[:3,3]
 
@@ -273,7 +273,7 @@ def IK_from_top(dh_params, pos, theta=0):
     Picks up a block with the gripper pointing down
 
     @param dh_params DH table
-    @param pos desired [x,y,z] position
+    @param pos desired [x,y,z] position in mm
     @param theta rotation around the world z axis, defaults to zero
 
     @return theta a vector of angles for the joints

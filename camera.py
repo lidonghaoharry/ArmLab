@@ -268,8 +268,10 @@ class Camera():
         # print(w_ee)
         #find ee, wrist and elbow locations in camera coords
         c_ee = self.to_camera_coords(w_ee)
-        c_wrist = self.to_camera_coords(self.wrist_pos)
-        c_elbow = self.to_camera_coords(self.elbow_pos)
+        w_wrist = self.wrist_pos*1000
+        w_elbow = self.elbow_pos*1000
+        c_wrist = self.to_camera_coords(np.append(w_wrist, 1))
+        c_elbow = self.to_camera_coords(np.append(w_elbow, 1))
 
         #create and draw the box
         a = -90 + 180.0/np.pi * np.arctan2(self.base[1] - c_ee[1], self.base[0] - c_ee[0])
@@ -283,8 +285,13 @@ class Camera():
         cv2.fillPoly(mask, [box], 0)
 
         #check if the wrist and elbow are outside the created mask
-        if mask[c_wrist[0], c_wrist[1]] > 0 or mask[c_elbow[0], c_elbow[1]] > 0:
+        # print("elbow camera pos")
+        # print(c_elbow)
+        # print("ee mask value")
+        # print(mask[int(c_ee[0]), int(c_ee[1])])
+        if mask[int(c_wrist[1]), int(c_wrist[0])] > 0 or mask[int(c_elbow[1]), int(c_elbow[0])] > 0:
             #if it is outside make a new box that covers it
+            # print("wrist/elbow not masked")
             a = -90 + 180.0/np.pi * np.arctan2(c_elbow[1] - c_wrist[1], c_elbow[0] - c_wrist[0])
             h = np.linalg.norm(c_elbow[:2] - c_wrist[:2]) + 150
             w = 150.0
@@ -292,7 +299,7 @@ class Camera():
 
             box = cv2.boxPoints(((c[0], c[1]), (w, h), a))
             box = np.int0(box)
-            cv2.drawContours(self.VideoFrame, [box], 0, (255, 0, 0), 2)
+            cv2.drawContours(self.VideoFrame, [box], 0, (0, 0, 255), 2)
             cv2.fillPoly(mask, [box], 0)
 
     def detectBlocksInDepthImage(self):
@@ -458,8 +465,7 @@ class Camera():
 
     def get_height_img(self):
         img = self.auto_Hinv[2, 3] - self.DepthFrameRaw
-        print(self.auto_Hinv[2, 3])
-        print(img.shape)
+        print("H inv 2, 3: " + str(self.auto_Hinv[2, 3]))
         return img
 
     def generate_id(self):

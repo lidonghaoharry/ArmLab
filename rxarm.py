@@ -101,7 +101,7 @@ class RXArm(InterbotixRobot):
         # max speed (arbitrarily set atm) radians/sec
         self.max_speed = 1.1
         
-        self.gearbox_k = np.array([0.0, 0.0194, 0.0819, 0.0, 0.0])
+        self.gearbox_k = np.array([0.0, 0.01328, 0.0719, 0.0, 0.0])
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
@@ -234,7 +234,8 @@ class RXArm(InterbotixRobot):
         @return     The EE pose as [x, y, z, phi, theta, psi]
         """
         T = kinematics.FK_dh(self.dh_params, self.get_positions(), self.num_joints, self.wrist_pos, self.elbow_pos)
-        # print(T)
+        # print("wrist pos")
+        # print(self.wrist_pos)
         self.ee_pose = kinematics.get_pose_from_T(T).tolist()
         return self.ee_pose
 
@@ -316,7 +317,7 @@ class RXArm(InterbotixRobot):
             if size == 'l':
                 pos_w[2] += 10
             else:
-                pos_w[2] += 5
+                pos_w[2] += 10
         else:
             if size == 'l':
                 pos_w[2] -= 25
@@ -352,14 +353,27 @@ class RXArm(InterbotixRobot):
             pos[2] += 30
         else:
             pos[2] += 30
-
-        approach_point = np.array([pos[0], pos[1], pos[2] + 70])
+        
+        extra_reach = 15
+        if size == 's':
+            extra_reach = 15
+        
+        alpha = np.arctan2(pos[1],pos[0])
+        offset_dist = 50
+        approach_point = np.array([pos[0] - offset_dist*np.cos(alpha), pos[1] - offset_dist*np.sin(alpha), pos[2] + 70])
         joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
         self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
 
-        joint_angles = kinematics.IK_from_side(self.dh_params, pos)
+        approach_point = np.array([pos[0] - offset_dist*np.cos(alpha), pos[1] - offset_dist*np.sin(alpha), pos[2]])
+        joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
+        self.set_move_time(joint_angles_approach)
+        self.set_g_corrected_positions(joint_angles_approach)
+        rospy.sleep(self.moving_time + self.wait_time)
+
+        point = np.array([pos[0] + extra_reach*np.cos(alpha), pos[1] + extra_reach*np.sin(alpha), pos[2]])
+        joint_angles = kinematics.IK_from_side(self.dh_params, point)
         self.set_move_time(joint_angles)
         self.set_g_corrected_positions(joint_angles)
         rospy.sleep(self.moving_time + self.wait_time)
@@ -371,6 +385,8 @@ class RXArm(InterbotixRobot):
             self.close_gripper()
             self.has_block = True
 
+        approach_point = np.array([pos[0], pos[1], pos[2] + 70])
+        joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
         self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
@@ -382,22 +398,43 @@ class RXArm(InterbotixRobot):
         except:
             self.pick_from_side(pos_w, size=size)
 
-    def which_block(self, point, block_info):
-        ret = -1
-        # print("point: " + str(point))
+    def move_to_pos(self, pos, theta=0):
+        try:
+            joint_angles = kinematics.IK_from_top(self.dh_params, pos, theta=theta)
+        except:
+            joint_angles = kinematics.IK_from_side(self.dh_params, pos)
+        self.set_move_time(joint_angles)
+        self.set_g_corrected_positions(joint_angles)
+        rospy.sleep(self.moving_time + self.wait_time)
+
+    def which_block(self, point, block_info, thresh=50):
+        ret = -1 
+        min = 100000
+        print("point: " + str(point))
 
         for id in block_info:
             block = block_info[id]
 
             # contour = block[3]
             id = block[0]
+            center = block[1]
             box = block[2]
+
             # print("contour: " + str(contour))
-            # print("color: " + str(block[2]))
             # print("box: " + str(box))
 
-            if cv2.pointPolygonTest(box, (point[0], point[1]), False) == 1:
+            # if cv2.pointPolygonTest(box, (point[0], point[1]), False) == 1:
+            dist = np.linalg.norm(point[:2] - np.array(center))
+
+            # print("color: " + str(block[4]) + " size: " + str(block[6]))
+            # print("center: " + str(center) + " dist: " + str(dist))
+
+            if dist < min:
+                min = dist
                 ret = (id, block)
+
+        if min > thresh:
+            ret = -1
 
         return ret
     
