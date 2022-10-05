@@ -66,12 +66,12 @@ class Camera():
 
         # RGB colors
         self.colors = list((
-            {'id': 'red', 'color': (255, 0, 0)},
+            {'id': 'red', 'color': (225, 0, 0)},
             {'id': 'orange', 'color': (255,69,0)},
             {'id': 'yellow', 'color': (204,204,0)},
-            {'id': 'green', 'color': (0, 255, 0)},
-            {'id': 'blue', 'color': (0,0,255)},
-            {'id': 'violet', 'color': (148,0,211)},
+            {'id': 'green', 'color': (0, 200, 0)},
+            {'id': 'blue', 'color': (0,0,225)},
+            {'id': 'violet', 'color': (100,0,211)},
             {'id': 'pink', 'color': (255,20,147)}))
 
         # self.colors = list((

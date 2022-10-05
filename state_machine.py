@@ -223,8 +223,8 @@ class StateMachine():
         '''
         line up small and large blocks by color
         '''
-        l_drop_pos = np.array([-325.0,-75.0, 0.0])
-        r_drop_pos = np.array([325.0,-75.0, 0.0])
+        l_drop_pos = np.array([-350.0,-75.0, 0.0])
+        r_drop_pos = np.array([440.0,-75.0, 0.0])
 
         #move everything to positive half plane
         self.move_all_positive()
@@ -239,13 +239,29 @@ class StateMachine():
         p_blocks = self.camera.positive_blocks()
         l_block = self.find_next_block(p_blocks, 'l')
         while l_block is not None:
+            # print('p_blocks: ', p_blocks)
             size = l_block[6]
             b_pos_w = l_block[1]
             theta = l_block[3]
             self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
 
-            self.rxarm.pick_block(r_drop_pos, theta=90, size=size, x_offset = -50) #approach from the side a bit
-            r_drop_pos[1] -= 40
+            #move the arm to neutral position
+            self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
+
+            drop_pos_c = self.camera.to_camera_coords(np.append(r_drop_pos, 1))
+            if self.rxarm.which_block(drop_pos_c, self.camera.block_info) != -1:
+                r_drop_pos[0] -= 40
+            
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([200.0, -75.0, 200.0]), theta=90)
+            
+            self.rxarm.pick_block(r_drop_pos.copy(), theta=90, size=size, x_offset = -30) #approach from the side a bit
+
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([200.0, -75.0, 200.0]), theta=90)
+
+            # print("drop position: " + str(r_drop_pos))
             #get the next large block by color
             p_blocks = self.camera.positive_blocks()
             l_block = self.find_next_block(p_blocks, 'l')
@@ -259,8 +275,22 @@ class StateMachine():
             theta = s_block[3]
             self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
 
-            self.rxarm.pick_block(l_drop_pos, theta=90, size=size, x_offset = 50) #approach from the side a bit
-            l_drop_pos[1] += 40
+            #move the arm to neutral position
+            self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
+
+            drop_pos_c = self.camera.to_camera_coords(np.append(l_drop_pos, 1))
+            if self.rxarm.which_block(drop_pos_c, self.camera.block_info) != -1:
+                l_drop_pos[0] += 35
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([-200.0, -75.0, 200.0]), theta=90)
+
+            self.rxarm.pick_block(l_drop_pos.copy(), theta=90, size=size, x_offset = 30) #approach from the side a bit
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([-200.0, -75.0, 200.0]), theta=90)
+
+            # print("drop position " + str(l_drop_pos))
             #get the next small block by color
             p_blocks = self.camera.positive_blocks()
             s_block = self.find_next_block(p_blocks, 's')
@@ -303,7 +333,7 @@ class StateMachine():
         move all blocks into the positive half plane
         '''
         n_blocks = self.camera.negative_blocks(y_cutoff=25)
-        while n_blocks is not None:
+        while len(n_blocks) > 0:
             id = n_blocks.keys()[0]
             block = n_blocks[id]
             pos_w = block[1]
@@ -325,15 +355,16 @@ class StateMachine():
 
         returns last tried if it didn't work
         '''
-        for _ in range(100):
-            x = np.random.randint(-200, 200)
-            y = np.random.randint(100, 275)
-            point_w = np.array([x,y,0])
+        for _ in range(300):
+            x = np.random.randint(-220, 220)
+            y = np.random.randint(150, 300)
+            point_w = np.array([x,y,0,1], dtype=np.float)
             point_c = self.camera.to_camera_coords(point_w)
-            if self.rxarm.which_block(point_c, blocks) == -1:
-                return point_w
+            # print("point_c: " + str(point_c))
+            if self.rxarm.which_block(point_c, blocks, thresh=50) == -1:
+                return point_w[:3]
         print("no valid location found")
-        return point_w
+        return point_w[:3]
     
     def find_next_block(self, blocks, size):
         '''
@@ -341,7 +372,7 @@ class StateMachine():
         '''
         color_ids = {'red':0, 'orange':1, 'yellow':2, 'green':3, 'blue':4, 'violet':5}
         ret = None
-        min_color_id = -1
+        min_color_id = 10000000
         for id in blocks:
             block = blocks[id]
 
@@ -349,6 +380,8 @@ class StateMachine():
                 block_color = block[4]
                 color_id = color_ids[block_color]
                 if color_id < min_color_id:
+                    print("color:" + str(color_id))
+                    min_color_id = color_id
                     ret = block 
 
         return ret
@@ -432,6 +465,10 @@ class StateMachine():
 
     def replay_waypoints(self):
         self.current_state = "replay"
+
+        #FOR TESTING
+        # self.recorded_positions = np.load("recorded_pos.npy", allow_pickle=True)
+
         n = len(self.recorded_positions)
         th_data = np.zeros((n,5))
         pose_data = np.zeros((4,4,n))
@@ -441,7 +478,8 @@ class StateMachine():
             self.rxarm.set_move_time(arm_pose)
 
             # move arm 
-            self.rxarm.set_positions(arm_pose)
+            # self.rxarm.set_positions(arm_pose)
+            self.rxarm.set_g_corrected_positions(arm_pose)
             rospy.sleep(self.rxarm.moving_time + self.rxarm.wait_time)
 
             # open/close gripper
@@ -455,8 +493,8 @@ class StateMachine():
             rospy.sleep(1)
             pose_data[:,:,i] = self.rxarm.get_ee_T()
             th_data[i,:] = arm_pose
-        np.save('theta_data5', th_data)
-        np.save('pose_data5', pose_data)
+        np.save('corr_theta_data7', th_data)
+        np.save('corr_pose_data7', pose_data)
             
         self.next_state = "idle"
 
@@ -474,6 +512,7 @@ class StateMachine():
         self.status_message = "Teach Mode"
 
     def stop_teaching(self):
+        np.save('recorded_pos', self.recorded_positions)
         self.next_state = "idle"
 
     def record_position(self):

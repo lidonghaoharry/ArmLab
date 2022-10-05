@@ -283,7 +283,7 @@ def IK_from_top(dh_params, pos, theta=0):
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
     T[:3,3] = pos/1000 # mm to m
-    print(T)
+    # print(T)
     theta = IK_geometric(dh_params, T)
 
     if theta[0,0] <= 3*np.pi/4 and theta[0,0] >= -3*np.pi/4:
@@ -307,7 +307,7 @@ def IK_from_side(dh_params, pos):
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
     T[:3,3] = pos/1000 # mm to m
-    print(T)
+    # print(T)
     theta = IK_geometric(dh_params, T)
 
     if theta[0,0] <= 3*np.pi/4 and theta[0,0] >= -3*np.pi/4:

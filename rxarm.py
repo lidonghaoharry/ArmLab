@@ -101,7 +101,10 @@ class RXArm(InterbotixRobot):
         # max speed (arbitrarily set atm) radians/sec
         self.max_speed = 1.1
         
-        self.gearbox_k = np.array([0.0, 0.01328, 0.0719, 0.0, 0.0])
+        # self.gearbox_k = np.array([0.0, 0.01328, 0.0719, 0.0, 0.0])
+        # self.gearbox_k = np.array([0.0, 0.0118, 0.0632, 0.0, 0.0])
+        self.gearbox_k = np.array([0.0, 0.0272, 0.05388, 0.0, 0.0])
+
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
@@ -392,7 +395,11 @@ class RXArm(InterbotixRobot):
         rospy.sleep(self.moving_time + self.wait_time)
 
     def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l", x_offset=0):
-        print(pos_w)
+        print("pick position: " + str(pos_w))
+        theta_options = [theta, 90+theta]
+        theta_i = np.argmin(np.abs(theta_options))
+        theta = theta_options[theta_i]
+        # print(theta)
         try:
             self.pick_from_top(pos_w, pos_c, block_info, theta, size=size, x_offset=x_offset)
         except:
@@ -410,7 +417,7 @@ class RXArm(InterbotixRobot):
     def which_block(self, point, block_info, thresh=50):
         ret = -1 
         min = 100000
-        print("point: " + str(point))
+        # print("point: " + str(point))
 
         for id in block_info:
             block = block_info[id]
@@ -424,10 +431,10 @@ class RXArm(InterbotixRobot):
             # print("box: " + str(box))
 
             # if cv2.pointPolygonTest(box, (point[0], point[1]), False) == 1:
-            dist = np.linalg.norm(point[:2] - np.array(center))
+            # print("center: " + str(center) + " point: " + str(point))
+            dist = np.linalg.norm(point[:2] - np.array(center[:2]))
 
             # print("color: " + str(block[4]) + " size: " + str(block[6]))
-            # print("center: " + str(center) + " dist: " + str(dist))
 
             if dist < min:
                 min = dist
@@ -441,6 +448,8 @@ class RXArm(InterbotixRobot):
     def set_g_corrected_positions(self, joint_angles):
         g_forces = kinematics.get_grav(joint_angles, self.S_list)
         corrections = self.gearbox_k * g_forces
+        # print("grav corrections: " + str(corrections))
+        # print("grav forces: " + str(g_forces))
         self.set_positions(joint_angles + corrections)
 
     def set_move_time(self, new_pose):
