@@ -345,8 +345,8 @@ class StateMachine():
             rospy.sleep(1)
             pose_data[:,:,i] = self.rxarm.get_ee_T()
             th_data[i,:] = arm_pose
-        np.save('theta_data4', th_data)
-        np.save('pose_data4', pose_data)
+        np.save('theta_data5', th_data)
+        np.save('pose_data5', pose_data)
             
         self.next_state = "idle"
 
