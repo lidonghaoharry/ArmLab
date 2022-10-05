@@ -429,6 +429,22 @@ class Camera():
 
         return p_blocks
 
+    def negative_blocks(self, y_cutoff=0):
+        blocks = {}
+        for id in self.block_info:
+            block = self.block_info[id]
+            center = block[1]
+            depth = block[7]
+
+            # convert to world to check half plane 
+            center = [center[0], center[1], 1]
+            pos_w = self.to_world_coords(depth, center)
+
+            if pos_w[1] < y_cutoff:
+                blocks[id] = (id, pos_w, block[2], block[3], block[4], block[5], block[6], block[7])
+
+        return blocks
+
     def to_add(self, center, thresh=5):
         min = 10000000
         min_id = None 
