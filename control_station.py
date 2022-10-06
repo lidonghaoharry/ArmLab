@@ -121,6 +121,8 @@ class Gui(QMainWindow):
         self.ui.btnUser12.setText("Event 4")
         self.ui.btnUser12.clicked.connect(partial(nxt_if_arm_init, 'event4'))
 
+        self.ui.btn_task1.clicked.connect(partial(nxt_if_arm_init, 'kinematics_grid'))
+
         # Sliders
         for sldr in self.joint_sliders:
             sldr.valueChanged.connect(self.sliderChange)

@@ -106,6 +106,9 @@ class StateMachine():
 
         if self.next_state == "event4":
             self.event4()
+        
+        if self.next_state == "kinematics_grid":
+            self.kinematics_grid()
 
 
     """Functions run for each state"""
@@ -667,7 +670,7 @@ class StateMachine():
         self.next_state = "idle"
 
     def kinematics_grid(self):
-        z = 50
+        z = 150
         x = np.linspace(-400, -100, 4)
         y = np.linspace(-50, 350, 5)
         lgridx, lgridy = np.meshgrid(x,y)
@@ -689,13 +692,14 @@ class StateMachine():
         achieved_pos = np.zeros((n,3))
         for i in range(points.shape[1]):
             pos = np.array([points[0,i], points[1,i], z])
-            self.rxarm.move_to_pos(pos) #uses g compensation
-            # self.rxarm.move_to_pos(pos, use_g_correction = False) # no g compensation
+            # self.rxarm.move_to_pos(pos) #uses g compensation
+            self.rxarm.move_to_pos(pos, use_g_correction = False) # no g compensation
             rospy.sleep(1)
             expected_pos[i,:] = pos
             achieved_pos[i,:] = self.rxarm.get_ee_T()[:3,3]
-        np.save('kinematics_grid_expected',expected_pos)
-        np.save('kinematics_grid_actual', achieved_pos)
+        np.save('kinematics_grid_expected_no_g2',expected_pos)
+        np.save('kinematics_grid_actual_no_g2', achieved_pos)
+        self.next_state = 'idle'
 
 
     def teach(self):
