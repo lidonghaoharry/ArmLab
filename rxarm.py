@@ -301,7 +301,7 @@ class RXArm(InterbotixRobot):
         """
         return self.dh_params
 
-    def pick_from_top(self, pos_w, pos_c=None, block_info=None, theta=0, size='l', x_offset=0):
+    def pick_from_top(self, pos_w, pos_c=None, block_info=None, theta=0, size='l', x_offset=0,z_offset=70):
         if block_info is not None:
             block = self.which_block(pos_c, block_info)
             # print("which block return: " + str(block))
@@ -327,7 +327,7 @@ class RXArm(InterbotixRobot):
             else:
                 pos_w[2] -= 10
 
-        approach_point = np.array([pos_w[0] + x_offset, pos_w[1], pos_w[2] + 70])
+        approach_point = np.array([pos_w[0] + x_offset, pos_w[1], pos_w[2] + z_offset])
         joint_angles_approach = kinematics.IK_from_top(self.dh_params, approach_point, block_angle*np.pi/180)
         self.set_move_time(joint_angles_approach)
         self.set_g_corrected_positions(joint_angles_approach)
@@ -394,14 +394,14 @@ class RXArm(InterbotixRobot):
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
 
-    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l", x_offset=0):
+    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l", x_offset=0, z_offset=70):
         print("pick position: " + str(pos_w))
         theta_options = [theta, 90+theta]
         theta_i = np.argmin(np.abs(theta_options))
         theta = theta_options[theta_i]
         # print(theta)
         try:
-            self.pick_from_top(pos_w, pos_c, block_info, theta, size=size, x_offset=x_offset)
+            self.pick_from_top(pos_w, pos_c, block_info, theta, size=size, x_offset=x_offset, z_offset=z_offset)
         except:
             self.pick_from_side(pos_w, size=size, x_offset=x_offset)
 
