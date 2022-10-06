@@ -398,6 +398,7 @@ class Camera():
                     if id is None:
                         id = self.generate_id()
                         depth = self.DepthFrameRaw[int(center[1]), int(center[0])]
+                        # print("center: " + str(center))
                         self.block_info[id] = (id, center, box, theta, color, contour, size, depth)
            
                     # display id

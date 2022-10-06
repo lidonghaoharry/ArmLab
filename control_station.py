@@ -118,6 +118,8 @@ class Gui(QMainWindow):
         self.ui.btnUser10.clicked.connect(partial(nxt_if_arm_init, 'event2'))
         self.ui.btnUser11.setText("Event 3")
         self.ui.btnUser11.clicked.connect(partial(nxt_if_arm_init, 'event3'))
+        self.ui.btnUser12.setText("Event 4")
+        self.ui.btnUser12.clicked.connect(partial(nxt_if_arm_init, 'event4'))
 
         # Sliders
         for sldr in self.joint_sliders:

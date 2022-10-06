@@ -47,6 +47,8 @@ class StateMachine():
         self.REG_BLOCK_HEIGHT = 40
         self.SMALL_BLOCK_HEIGHT = 20
 
+        self.regrip_pos = np.array([0.0, 175.0, 0.0, 1])
+
 
     def set_next_state(self, state):
         """!
@@ -101,6 +103,9 @@ class StateMachine():
 
         if self.next_state == "event3":
             self.event3()
+
+        if self.next_state == "event4":
+            self.event4()
 
 
     """Functions run for each state"""
@@ -224,7 +229,7 @@ class StateMachine():
         line up small and large blocks by color
         '''
         l_drop_pos = np.array([-350.0,-75.0, 0.0])
-        r_drop_pos = np.array([440.0,-75.0, 0.0])
+        r_drop_pos = np.array([400.0,-75.0, 0.0])
 
         #move everything to positive half plane
         self.move_all_positive()
@@ -297,6 +302,169 @@ class StateMachine():
 
         self.next_state = 'idle'
 
+    def event4(self):
+        l_drop_pos = np.array([-200.0,-75.0, 0.0])
+        r_drop_pos = np.array([200.0,-75.0, 0.0])
+
+        #move everything to positive half plane
+        self.move_all_positive()
+        
+        #unstack everything into the positive half-plane
+        self.unstack_all(rand_pos=True)
+
+        #move the arm out off the way so all blocks are visible
+        self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+
+        # move blocks out of regrip pos 
+        self.clear_regrip_pos()
+        
+        #sort the large blocks
+        p_blocks = self.camera.positive_blocks()
+        l_block = self.find_next_block(p_blocks, 'l')
+        while l_block is not None:
+            # print('p_blocks: ', p_blocks)
+            size = l_block[6]
+            b_pos_w = l_block[1]
+            theta = l_block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            # move the arm to neutral position
+            self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
+
+            # regrip block 
+            self.regrip(size)
+
+            drop_pos_c = self.camera.to_camera_coords(np.append(r_drop_pos, 1))
+            block = self.rxarm.which_block(drop_pos_c, self.camera.block_info)
+            if block != -1:
+                id, block = block 
+                center = block[1]
+                depth = block[7]
+
+                # convert to world 
+                center = [center[0], center[1], 1]
+                pos_w = self.camera.to_world_coords(depth, center)
+                r_drop_pos = pos_w[:3]
+            
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([100.0, -75.0, 300.0]), theta=90)
+            
+            self.rxarm.pick_block(r_drop_pos.copy(), theta=90, size=size, z_offset=30)
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([100.0, -75.0, 300.0]), theta=90)
+
+            # print("drop position: " + str(r_drop_pos))
+            #get the next large block by color
+            p_blocks = self.camera.positive_blocks()
+            l_block = self.find_next_block(p_blocks, 'l')
+
+        #sort the small blocks
+        p_blocks = self.camera.positive_blocks()
+        s_block = self.find_next_block(p_blocks, 's')
+        while s_block is not None:
+            size = s_block[6]
+            b_pos_w = s_block[1]
+            theta = s_block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            #move the arm to neutral position
+            self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
+
+            # regrip block 
+            self.regrip(size)
+
+            drop_pos_c = self.camera.to_camera_coords(np.append(l_drop_pos, 1))
+            block = self.rxarm.which_block(drop_pos_c, self.camera.block_info)
+            if block != -1:
+                id, block = block 
+                center = block[1]
+                depth = block[7]
+
+                # convert to world 
+                center = [center[0], center[1], 1]
+                pos_w = self.camera.to_world_coords(depth, center)
+                l_drop_pos = pos_w[:3]
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([-100.0, -75.0, 200.0]), theta=90)
+
+            fudge_factors = np.array([7.0, 0.0, 3.0])
+            self.rxarm.pick_block(l_drop_pos.copy() + fudge_factors, theta=90, size=size) #approach from the side a bit
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([-100.0, -75.0, 200.0]), theta=90)
+
+            # print("drop position " + str(l_drop_pos))
+            #get the next small block by color
+            p_blocks = self.camera.positive_blocks()
+            s_block = self.find_next_block(p_blocks, 's')
+
+        self.next_state = 'idle'
+
+    def regrip(self, size):
+        # drop block at regrip position 
+        self.rxarm.pick_block(self.regrip_pos[:3].copy(), theta=0, size=size)
+
+        # move the arm out off the way so all blocks are visible
+        self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+
+        # get block in regrip pos
+        self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+        p = self.camera.to_camera_coords(self.regrip_pos)
+        block = self.rxarm.which_block(p, self.camera.block_info)
+
+        # pick up block in regrip position 
+        if block != -1:
+            id, block = block 
+            center = block[1]
+            theta = block[3]
+            size = block[6]
+            depth = block[7]
+
+            # convert to world 
+            center = [center[0], center[1], 1]
+            pos_w = self.camera.to_world_coords(depth, center)
+
+            # pick up block 
+            self.rxarm.pick_block(np.array(pos_w[:3]), theta=theta, size=size)
+
+    def clear_regrip_pos(self):
+        # move the arm out off the way so all blocks are visible
+        self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+        p = self.camera.to_camera_coords(self.regrip_pos)
+
+        block = self.rxarm.which_block(p, self.camera.block_info)
+        print(block)
+
+        # while there exists a block in the regrip position 
+        while block != -1:
+            id, block = block 
+            center = block[1]
+            theta = block[3]
+            size = block[6]
+            depth = block[7]
+
+            # convert to world 
+            center = [center[0], center[1], 1]
+            pos_w = self.camera.to_world_coords(depth, center)
+
+            # pick up block 
+            self.rxarm.pick_block(np.array(pos_w[:3]), theta=theta, size=size)
+
+            # move to random pos 
+            pos_w = self.get_random_drop_pos(self.camera.block_info)
+
+            # drop block
+            self.rxarm.pick_block(np.array(pos_w), theta=0, size=size)
+
+            # move the arm out off the way so all blocks are visible
+            self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+
+            # get block in regrip pos
+            block = self.rxarm.which_block(p, self.camera.block_info)
+            print(block)
+
     def unstack_all(self, rand_pos=False):
         p_blocks = self.camera.positive_blocks()
         s_block = self.get_stacked_block(p_blocks)
@@ -356,12 +524,12 @@ class StateMachine():
         returns last tried if it didn't work
         '''
         for _ in range(300):
-            x = np.random.randint(-220, 220)
-            y = np.random.randint(150, 300)
+            x = np.random.randint(-240, 240)
+            y = np.random.randint(150, 330)
             point_w = np.array([x,y,0,1], dtype=np.float)
             point_c = self.camera.to_camera_coords(point_w)
             # print("point_c: " + str(point_c))
-            if self.rxarm.which_block(point_c, blocks, thresh=50) == -1:
+            if self.rxarm.which_block(point_c, blocks, thresh=75) == -1:
                 return point_w[:3]
         print("no valid location found")
         return point_w[:3]
