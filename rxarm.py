@@ -405,13 +405,16 @@ class RXArm(InterbotixRobot):
         except:
             self.pick_from_side(pos_w, size=size, x_offset=x_offset)
 
-    def move_to_pos(self, pos, theta=0):
+    def move_to_pos(self, pos, theta=0, use_g_correction=True):
         try:
             joint_angles = kinematics.IK_from_top(self.dh_params, pos, theta=theta)
         except:
             joint_angles = kinematics.IK_from_side(self.dh_params, pos)
         self.set_move_time(joint_angles)
-        self.set_g_corrected_positions(joint_angles)
+        if use_g_correction:
+            self.set_g_corrected_positions(joint_angles)
+        else:
+            self.set_positions(joint_angles)
         rospy.sleep(self.moving_time + self.wait_time)
 
     def which_block(self, point, block_info, thresh=50):

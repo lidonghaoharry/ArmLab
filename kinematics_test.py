@@ -57,10 +57,14 @@ def IK_5DOF_unit_tests(dh_params):
 
 #         assert(np.max(err[:,best_soln_idx]) < tol)
 
-def calculate_position_error(dataset, s_lst):
+def calculate_position_error(dataset, s_lst, corrected=False):
     gearbox_k = np.array([0.0, 0.0194, 0.0619, 0.0, 0.0])
-    pose = np.load('pose_data{}.npy'.format(dataset))
-    theta = np.load('theta_data{}.npy'.format(dataset))
+    if corrected:
+        pose = np.load('corr_pose_data{}.npy'.format(dataset))
+        theta = np.load('corr_theta_data{}.npy'.format(dataset))
+    else:
+        pose = np.load('pose_data{}.npy'.format(dataset))
+        theta = np.load('theta_data{}.npy'.format(dataset))
     n = theta.shape[0]
     err = np.zeros(n)
     err_corr = np.zeros(n)
@@ -71,10 +75,11 @@ def calculate_position_error(dataset, s_lst):
         T_corr = kinematics.FK_dh(dh_params, theta[i] - corrections, 5)
         err_corr[i] = np.linalg.norm(pose[:3,3,i]-T_corr[:3,3])
         err[i] = np.linalg.norm(pose[:3,3,i]-T_dh[:3,3])
-    print(err)
-    print('mean err:', np.mean(err))
-    print(err_corr)
-    print('mean err w/ corrections:', np.mean(err_corr))
+    # print(err)
+    print('mean err: ', np.mean(err))
+    print('std: ', np.std(err))
+    # print(err_corr)
+    # print('mean err w/ corrections:', np.mean(err_corr))
 
 if __name__ == '__main__':
     dh_params = np.array([[0, -np.pi/2, 0.10391, 0],
@@ -92,6 +97,9 @@ if __name__ == '__main__':
                     [1, 0, 0, 0, 0.30391, -0.25],
                     [0, 1, 0, -0.30391, 0, 0]])
     
-    calculate_position_error(4, s_lst)
+    print("------before grav correction------")
+    calculate_position_error(7, s_lst)
+    print("------after grav correction------")
+    calculate_position_error(7, s_lst, True)
 
     # IK_5DOF_unit_tests(dh_params)
