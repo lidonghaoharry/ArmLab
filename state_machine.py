@@ -666,6 +666,38 @@ class StateMachine():
             
         self.next_state = "idle"
 
+    def kinematics_grid(self):
+        z = 50
+        x = np.linspace(-400, -100, 4)
+        y = np.linspace(-50, 350, 5)
+        lgridx, lgridy = np.meshgrid(x,y)
+        lpairs = np.vstack([lgridx.ravel(), lgridy.ravel()])
+
+        x = 0
+        y = np.linspace(150, 350, 3)
+        cgridy, cgridx = np.meshgrid(y, x)
+        cpairs = np.vstack([cgridx.ravel(), cgridy.ravel()])
+
+        x = np.linspace(400, 100, 4)
+        y = np.linspace(-50, 350, 5)
+        rgridy, rgridx = np.meshgrid(y, x)
+        rpairs = np.vstack([rgridx.ravel(), rgridy.ravel()])
+        points = np.hstack((lpairs, cpairs, rpairs))
+
+        n = points.shape[1]
+        expected_pos = np.zeros((n,3))
+        achieved_pos = np.zeros((n,3))
+        for i in range(points.shape[1]):
+            pos = np.array([points[0,i], points[1,i], z])
+            self.rxarm.move_to_pos(pos) #uses g compensation
+            # self.rxarm.move_to_pos(pos, use_g_correction = False) # no g compensation
+            rospy.sleep(1)
+            expected_pos[i,:] = pos
+            achieved_pos[i,:] = self.rxarm.get_ee_T()[:3,3]
+        np.save('kinematics_grid_expected',expected_pos)
+        np.save('kinematics_grid_actual', achieved_pos)
+
+
     def teach(self):
         '''teach and repeat state'''
         if self.current_state != "teach":
