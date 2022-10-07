@@ -264,11 +264,19 @@ class Gui(QMainWindow):
 
     def clickPickPlace(self, mouse_event):
         pt = mouse_event.pos()
+
         if self.camera.DepthFrameRaw.any() != 0:
             z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
 
             # get point in both world and camera coords
             X_w = self.camera.to_world_coords(z, np.array([pt.x(), pt.y(), 1]))
+
+            # if self.camera.c_points is None:
+            #     self.camera.c_points = np.array([pt.x(), pt.y(), 1, z]).reshape(1, -1)
+            # else:
+            #     self.camera.c_points = np.append(self.camera.c_points, np.array([pt.x(), pt.y(), 1, z]).reshape(1, -1), axis=0)
+                # print("appended: " + str(np.array([pt.x(), pt.y(), 1, z]).reshape(1, -1)))
+
             X_c = [pt.x(), pt.y()]
 
             # tell arm to move to click position

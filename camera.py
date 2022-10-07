@@ -14,6 +14,7 @@ from sensor_msgs.msg import CameraInfo
 from apriltag_ros.msg import *
 from cv_bridge import CvBridge, CvBridgeError
 import random
+import matplotlib.pyplot as plt
 
 class Camera():
     """!
@@ -63,6 +64,8 @@ class Camera():
         self.wrist_pos = np.zeros(3)
         self.elbow_pos = np.zeros(3)
         self.base = np.array([670, 250])
+
+        self.c_points = None
 
         # RGB colors
         self.colors = list((
@@ -514,7 +517,11 @@ class Camera():
 
         return c_c
 
-    def auto_calibrate(self):
+    def auto_calibrate(self, heatmap=False):
+        # generate heatmap with rough Hinv
+        if heatmap:
+            self.calibration_heatmap(self.rough_Hinv, rough=True)
+
         self.tag_detections = self.tag_detections.T * 1000
         projection = np.hstack((np.eye(3), np.zeros([3,1])))
         
@@ -552,6 +559,96 @@ class Camera():
 
         # print(self.auto_Hinv)
         # print(self.rough_Hinv)
+
+        # generate heatmap with auto Hinv
+        if heatmap:
+            self.calibration_heatmap(self.auto_Hinv, rough=False)
+
+    def calibration_heatmap(self, H, rough=True):
+        error = np.zeros((14, 21))
+
+        # print(self.c_points.shape)
+        # with open('camera_coords.npy', 'wb') as f:
+        #     np.save(f, self.c_points)
+
+        self.c_points = np.load('camera_coords.npy')
+        # print(self.c_points.shape)
+
+        gt = [[(0.0, 0.0, 0.0) for i in range(21)] for j in range(14)]
+        
+        bottom_right = (500.0, -175.0, 0.0)
+
+        # world coords with 0 depth 
+        y_inc = 0
+        for i in range(14):
+            x_dec = 0
+            y = bottom_right[1] + y_inc
+            for j in reversed(range(21)):
+                x = bottom_right[0] - x_dec
+                gt[i][j] = (x, y, 0.0)
+                
+                x_dec += 50
+            y_inc += 50
+
+        # manually add in depths
+        gt[2][18] = (400.0, -75.0, 25.0)
+        gt[5][16] = (300.0, 75.0, 76.0)
+        gt[10][16] = (300.0, 325.0, 38.0)
+        gt[11][13] = (150.0, 375.0, 25.0)
+        gt[9][10] = (0.0, 275.0, 100.0)
+        gt[4][4] = (-300.0, 25.0, 38.0)
+        gt[11][3] = (-350.0, 375.0, 38.0)
+
+        ind = 0
+        avg_error = 0
+        for i in reversed(range(14)):
+            for j in range(21):
+                x_c = self.c_points[ind].astype(float)
+                z = x_c[3]
+                x_c = x_c[:3]
+
+                x_w = self.to_world_coords(z, x_c)[:3]
+                error[i, j] = np.linalg.norm(np.array(gt[i][j]) - x_w)
+                avg_error += error[i, j]
+
+                # print("--------------------------------------------------------------------------")
+                # print("world coord ground truth i j: " + str(i) + " " + str(j) + " " + str(gt[i][j]))
+                # print("camera pos from click: " + str(x_c))
+                # print("camera to world result: " + str(x_w))
+                # print("error: " + str(error[i, j]))
+
+
+                ind += 1
+
+        print("----------------------------------------------------")
+        avg_error = avg_error / (14*21)
+
+        fig, ax = plt.subplots()
+        if rough:
+            print("Manual Hinv avg error: " + str(avg_error))
+            ax.set_title("Manual Calibration Error Heatmap")
+        else:
+            print("Auto Calibration Hinv avg error: " + str(avg_error))
+            ax.set_title("Auto Calibration Error Heatmap")
+        ax.set_xlabel("World Coord X")
+        ax.set_ylabel("World Coord Y")
+
+        im = ax.imshow(error, cmap='hot', interpolation='nearest')
+        cbar = fig.colorbar(im)
+        cbar.set_label("Error", rotation=270)
+
+        ax.set_xticklabels([str(i) for i in range(-500, 500, 100)])
+        ax.set_yticklabels([str(i) for i in range(-275, 575, 100)])
+
+        if rough:
+            fig.savefig("Manual_error.png")
+        else:
+            fig.savefig("Auto_error.png")
+
+        plt.show()
+        plt.close(fig)
+
+
         
 
 
@@ -645,6 +742,8 @@ class DepthListener:
         self.camera.detectBlocksInDepthImage()
 
 
+
+
 class VideoThread(QThread):
     updateFrame = pyqtSignal(QImage, QImage, QImage)
 
@@ -670,6 +769,7 @@ class VideoThread(QThread):
             cv2.namedWindow("Depth window", cv2.WINDOW_NORMAL)
             cv2.namedWindow("Tag window", cv2.WINDOW_NORMAL)
             time.sleep(0.5)
+
         while True:
             rgb_frame = self.camera.convertQtVideoFrame()
             depth_frame = self.camera.convertQtDepthFrame()

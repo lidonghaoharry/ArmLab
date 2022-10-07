@@ -631,7 +631,7 @@ class StateMachine():
         self.next_state = "idle"
 
         """TODO Perform camera calibration routine here"""
-        self.camera.auto_calibrate()
+        self.camera.auto_calibrate(heatmap=True)
         self.status_message = "Calibration - Completed Calibration"
 
     def replay_waypoints(self):
