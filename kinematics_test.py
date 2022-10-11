@@ -102,4 +102,4 @@ if __name__ == '__main__':
     print("------after grav correction------")
     calculate_position_error(7, s_lst, True)
 
-    # IK_5DOF_unit_tests(dh_params)
+    IK_5DOF_unit_tests(dh_params)

@@ -1,3 +1,4 @@
+from tkinter import N
 import numpy as np
 from scipy.optimize import least_squares
 import kinematics
@@ -34,7 +35,7 @@ def residual(k, theta, pose):
         grav_torques = kinematics.get_grav(theta[i], s_lst)
         corrections = k*grav_torques
         T_corr = kinematics.FK_dh(dh_params, theta[i]-corrections, 5)
-        err[i] = np.linalg.norm(pose[1:3,3,i] - T_corr[1:3,3])
+        err[i] = np.linalg.norm(pose[:3,3,i] - T_corr[:3,3])
     return err
 
 k0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0])

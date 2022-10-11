@@ -257,6 +257,21 @@ def IK_geometric(dh_params, T):
         theta[4,i] = np.arctan2(R53[2,0], R53[2,1])
         theta[3,i] = np.arctan2(R53[0,2], -R53[1,2])
 
+        #check whether the rotation matches the desired
+        c5 = np.cos(theta[4,i])
+        s5 = np.sin(theta[4,i])
+        c4 = np.cos(theta[3,i])
+        s4 = np.sin(theta[3,i])
+        R53_soln = np.array([[c4*c5, -c4*s5, s4], [c5*s4, -s4*s5, -c4], [s5, c5, 0]])
+        R50_soln = np.matmul(R30,R53_soln)
+        tol = 1e-4
+        if np.max(np.abs(R50_soln - T50[:3,:3])) > tol:
+            print("Impossible orientation -- solved for R50: ")
+            print(R50_soln)
+            print("Wanted R50:")
+            print(T[:3,:3])
+            raise Exception("Imposible Wrist Orientation")
+
         # correct for differences between DH zero and motor zero positions
         theta[0,i] -= np.pi/2
         theta[1,i] += np.arctan2(200,50)
