@@ -106,6 +106,9 @@ class StateMachine():
 
         if self.next_state == "event4":
             self.event4()
+
+        if self.next_state == "event5":
+            self.event5()
         
         if self.next_state == "kinematics_grid":
             self.kinematics_grid()
@@ -232,6 +235,8 @@ class StateMachine():
 
         # move the arm out off the way so all blocks are visible
         self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+
+        self.clear_regrip_pos()
         
         # sort the large blocks
         p_blocks = self.camera.positive_blocks()
@@ -241,8 +246,9 @@ class StateMachine():
             size = l_block[6]
             b_pos_w = l_block[1]
             theta = l_block[3]
-            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
-
+            pick_side = self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+            if True:#pick_side == "side":
+                self.regrip(size)
             # move the arm to neutral position
             self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
 
@@ -274,8 +280,9 @@ class StateMachine():
             size = s_block[6]
             b_pos_w = s_block[1]
             theta = s_block[3]
-            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
-
+            pick_side = self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+            if True:#pick_side == "side":
+                self.regrip(size)
             # move the arm to neutral position
             self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
 
@@ -343,12 +350,12 @@ class StateMachine():
                 r_drop_pos = pos_w[:3]
             
             # go to approach point for stacks
-            self.rxarm.move_to_pos(np.array([100.0, -75.0, 300.0]), theta=90)
+            self.rxarm.move_to_pos(np.array([200.0, 0.0, 450]), theta=90)
             
             self.rxarm.pick_block(r_drop_pos.copy(), theta=90, size=size, z_offset=30)
 
             # go to approach point for stacks
-            self.rxarm.move_to_pos(np.array([100.0, -75.0, 300.0]), theta=90)
+            self.rxarm.move_to_pos(np.array([200.0, 0.0, 450]), theta=90)
 
             # print("drop position: " + str(r_drop_pos))
             #get the next large block by color
@@ -383,18 +390,84 @@ class StateMachine():
                 l_drop_pos = pos_w[:3]
 
             # go to approach point for stacks
-            self.rxarm.move_to_pos(np.array([-100.0, -75.0, 200.0]), theta=90)
+            self.rxarm.move_to_pos(np.array([-200.0, 0.0, 450]), theta=90)
 
             fudge_factors = np.array([3.0, 5.0, 3.0])
             self.rxarm.pick_block(l_drop_pos.copy() + fudge_factors, theta=90, size=size) #approach from the side a bit
 
             # go to approach point for stacks
-            self.rxarm.move_to_pos(np.array([-100.0, -75.0, 200.0]), theta=90)
+            self.rxarm.move_to_pos(np.array([-200.0, 0.0, 450]), theta=90)
 
             # print("drop position " + str(l_drop_pos))
             #get the next small block by color
             p_blocks = self.camera.positive_blocks()
             s_block = self.find_next_block(p_blocks, 's')
+
+        self.next_state = 'idle'
+
+    # Bonus Event: To the sky!
+    def event5(self):
+
+        # self.rxarm.move_to_pos(np.array([204.35188998, -2.5912079, 267.92167492]), theta=90)
+        # print("current theta: " + str(self.rxarm.get_positions()))
+        # self.next_state = 'idle'
+        # return
+        print("EVENT 5")
+        #l_drop_pos = np.array([-200.0,-75.0, 0.0])
+        drop_pos = np.array([200.0, 0.0, 0.0])
+
+        # move the arm out off the way so all blocks are visible
+        self.rxarm.move_to_pos(np.array([-100.0, 0.0, 200.0]))
+        
+        # sort the large blocks
+        p_blocks = self.camera.positive_blocks(y_cutoff=75)
+        l_block = self.find_next_block(p_blocks, 'l')
+        stack_height = 0
+        while l_block is not None:
+            # print('p_blocks: ', p_blocks)
+            size = l_block[6]
+            b_pos_w = l_block[1]
+            theta = l_block[3]
+            self.rxarm.pick_block(np.array(b_pos_w[:3]), theta=theta, size=size)
+
+            # move the arm to neutral position
+            self.rxarm.move_to_pos(np.array([0.0, 200.0, 200.0]))
+
+            # regrip block 
+            # self.regrip(size)
+
+            drop_pos_c = self.camera.to_camera_coords(np.append(drop_pos, 1))
+            block = self.rxarm.which_block(drop_pos_c, self.camera.block_info)
+            if block != -1:
+                id, block = block 
+                center = block[1]
+                depth = block[7]
+
+                # convert to world 
+                center = [center[0], center[1], 1]
+                pos_w = self.camera.to_world_coords(depth, center)
+                drop_pos = pos_w[:3]
+                stack_height = drop_pos[2]
+            
+            fudge_factor = np.array([2.0, -2.0, 2.0])
+
+            # go to approach point for stacks
+            # h = np.max([stack_height+50, 200])
+            self.rxarm.move_to_pos(np.array([200.0, 0.0, 450]), theta=90)
+            
+            self.rxarm.pick_block(drop_pos.copy()+fudge_factor, theta=90, size=size, z_offset=30, side_offset=0)
+
+            # go to approach point for stacks
+            h = np.max([stack_height+100, 200])
+            self.rxarm.move_to_pos(np.array([200.0, 0.0, 450]), theta=90)
+
+            # go to approach point for stacks
+            self.rxarm.move_to_pos(np.array([200.0, 0.0, 450]), theta=90)
+
+            # print("drop position: " + str(r_drop_pos))
+            #get the next large block by color
+            p_blocks = self.camera.positive_blocks(y_cutoff=75)
+            l_block = self.find_next_block(p_blocks, 'l')
 
         self.next_state = 'idle'
 
@@ -636,7 +709,7 @@ class StateMachine():
         self.current_state = "replay"
 
         #FOR TESTING
-        # self.recorded_positions = np.load("recorded_pos.npy", allow_pickle=True)
+        self.recorded_positions = np.load("recorded_pos.npy", allow_pickle=True)
 
         n = len(self.recorded_positions)
         th_data = np.zeros((n,5))
@@ -647,8 +720,8 @@ class StateMachine():
             self.rxarm.set_move_time(arm_pose)
 
             # move arm 
-            # self.rxarm.set_positions(arm_pose)
-            self.rxarm.set_g_corrected_positions(arm_pose)
+            self.rxarm.set_positions(arm_pose)
+            # self.rxarm.set_g_corrected_positions(arm_pose)
             rospy.sleep(self.rxarm.moving_time + self.rxarm.wait_time)
 
             # open/close gripper
@@ -662,8 +735,8 @@ class StateMachine():
             rospy.sleep(1)
             pose_data[:,:,i] = self.rxarm.get_ee_T()
             th_data[i,:] = arm_pose
-        np.save('corr_theta_data7', th_data)
-        np.save('corr_pose_data7', pose_data)
+        np.save('corr_theta_data8', th_data)
+        np.save('corr_pose_data8', pose_data)
             
         self.next_state = "idle"
 

@@ -417,7 +417,7 @@ class Camera():
 
         # print("number of blocks: " + str(len(self.block_info)))
 
-    def positive_blocks(self):
+    def positive_blocks(self, y_cutoff=0):
         p_blocks = {}
         for id in self.block_info:
             block = self.block_info[id]
@@ -428,7 +428,7 @@ class Camera():
             center = [center[0], center[1], 1]
             pos_w = self.to_world_coords(depth, center)
 
-            if pos_w[1] > 0:
+            if pos_w[1] > y_cutoff:
                 p_blocks[id] = (id, pos_w, block[2], block[3], block[4], block[5], block[6], block[7])
 
         return p_blocks
@@ -519,8 +519,9 @@ class Camera():
 
     def auto_calibrate(self, heatmap=False):
         # generate heatmap with rough Hinv
-        if heatmap:
-            self.calibration_heatmap(self.rough_Hinv, rough=True)
+        # Commented out heat map-------
+        #if heatmap:
+        #    self.calibration_heatmap(self.rough_Hinv, rough=True)
 
         self.tag_detections = self.tag_detections.T * 1000
         projection = np.hstack((np.eye(3), np.zeros([3,1])))
@@ -561,8 +562,9 @@ class Camera():
         # print(self.rough_Hinv)
 
         # generate heatmap with auto Hinv
-        if heatmap:
-            self.calibration_heatmap(self.auto_Hinv, rough=False)
+        # Commented out heat map++++++++
+        #if heatmap:
+            #self.calibration_heatmap(self.auto_Hinv, rough=False)
 
     def calibration_heatmap(self, H, rough=True):
         error = np.zeros((14, 21))

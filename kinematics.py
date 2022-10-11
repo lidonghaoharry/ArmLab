@@ -234,6 +234,7 @@ def IK_geometric(dh_params, T):
             s3 *= (-1)**((i & 0x01)) # pattern is +-+-
             theta[2,i] = -np.arctan2(s3,c3)
         else:
+            print("IK Failed")
             raise Exception("Outside of dexterous workspace")
 
         #theta 2
@@ -256,27 +257,23 @@ def IK_geometric(dh_params, T):
 
         theta[4,i] = np.arctan2(R53[2,0], R53[2,1])
         theta[3,i] = np.arctan2(R53[0,2], -R53[1,2])
-
-        #check whether the rotation matches the desired
-        c5 = np.cos(theta[4,i])
-        s5 = np.sin(theta[4,i])
-        c4 = np.cos(theta[3,i])
-        s4 = np.sin(theta[3,i])
-        R53_soln = np.array([[c4*c5, -c4*s5, s4], [c5*s4, -s4*s5, -c4], [s5, c5, 0]])
-        R50_soln = np.matmul(R30,R53_soln)
-        tol = 1e-4
-        if np.max(np.abs(R50_soln - T50[:3,:3])) > tol:
-            print("Impossible orientation -- solved for R50: ")
-            print(R50_soln)
-            print("Wanted R50:")
-            print(T[:3,:3])
-            raise Exception("Imposible Wrist Orientation")
-
+        
         # correct for differences between DH zero and motor zero positions
         theta[0,i] -= np.pi/2
         theta[1,i] += np.arctan2(200,50)
         theta[2,i] += np.arctan2(200,50)
         theta[3,i] -= np.pi/2
+
+        #check whether the pose matches the desired
+        T_soln = FK_dh(dh_params, theta[:,i], 5)
+        tol = 1e-6
+        if np.max(np.abs(T_soln - T50)) > tol:
+            print("Impossible orientation -- solved for T50: ")
+            print(T_soln)
+            print("Wanted T50:")
+            print(T50)
+            raise Exception("Imposible Wrist Orientation")
+
 
         theta = ((theta + np.pi) % (2*np.pi)) - np.pi # constrain to [-pi,pi]
         
@@ -298,12 +295,22 @@ def IK_from_top(dh_params, pos, theta=0):
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
     T[:3,3] = pos/1000 # mm to m
-    # print(T)
+    # print("IK top pos: " + str(T))
     theta = IK_geometric(dh_params, T)
-
+    
     if theta[0,0] <= 3*np.pi/4 and theta[0,0] >= -3*np.pi/4:
+        # print("FK: " + str(FK_dh(dh_params, theta[:,0], 5)))
+        # print("theta: " + str(theta[:,0]))
+        if theta[3,0] > 1.7 or theta[3,0] < -2.146: #joint limit
+            print("joint limits" + str(theta[3,0]))
+            raise Exception("Joint Limits J4")
         return theta[:,0]
     else:
+        # print("FK: " + str(FK_dh(dh_params, theta[:,2], 5)))
+        # print("theta: " + str(theta[:,2]))
+        if theta[3,2] > 1.7 or theta[3,2] < -2.146: #joint limit
+            print("joint limits" + str(theta[3,2]))
+            raise Exception("Joint Limits J4")
         return theta[:,2]
 
 def IK_from_side(dh_params, pos):
@@ -322,12 +329,22 @@ def IK_from_side(dh_params, pos):
     T = np.eye(4)
     T[:3,:3] = rot.as_dcm()
     T[:3,3] = pos/1000 # mm to m
-    # print(T)
+    # print("IK side pos: " + str(T))
     theta = IK_geometric(dh_params, T)
 
     if theta[0,0] <= 3*np.pi/4 and theta[0,0] >= -3*np.pi/4:
+        # print("FK: " + str(FK_dh(dh_params, theta[:,0], 5)))
+        # print("theta: " + str(theta[:,0]))
+        if theta[3,0] > 1.7 or theta[3,0] < -2.146: #joint limit
+            print("joint limits" + str(theta[3,0]))
+            raise Exception("Joint Limits J4")
         return theta[:,0]
     else:
+        # print("FK: " + str(FK_dh(dh_params, theta[:,2], 5)))
+        # print("theta: " + str(theta[:,2]))
+        if theta[3,2] > 1.7 or theta[3,2] < -2.146: #joint limit
+            print("joint limits" + str(theta[3,2]))
+            raise Exception("Joint Limits J4")
         return theta[:,2]
 
 

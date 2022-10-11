@@ -112,16 +112,19 @@ class Gui(QMainWindow):
         self.ui.btnUser8.setText("Replay Waypoints")
         self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'replay'))
 
-        self.ui.btnUser9.setText("Event 1")
-        self.ui.btnUser9.clicked.connect(partial(nxt_if_arm_init, 'event1'))
-        self.ui.btnUser10.setText("Event 2")
-        self.ui.btnUser10.clicked.connect(partial(nxt_if_arm_init, 'event2'))
-        self.ui.btnUser11.setText("Event 3")
-        self.ui.btnUser11.clicked.connect(partial(nxt_if_arm_init, 'event3'))
-        self.ui.btnUser12.setText("Event 4")
-        self.ui.btnUser12.clicked.connect(partial(nxt_if_arm_init, 'event4'))
+        self.ui.btn_task1.setText("Event 1")
+        self.ui.btn_task1.clicked.connect(partial(nxt_if_arm_init, 'event1'))
+        self.ui.btn_task2.setText("Event 2")
+        self.ui.btn_task2.clicked.connect(partial(nxt_if_arm_init, 'event2'))
+        self.ui.btn_task3.setText("Event 3")
+        self.ui.btn_task3.clicked.connect(partial(nxt_if_arm_init, 'event3'))
+        self.ui.btn_task4.setText("Event 4")
+        self.ui.btn_task4.clicked.connect(partial(nxt_if_arm_init, 'event4'))
+        self.ui.btn_task5.setText("Bonus Event")
+        self.ui.btn_task5.clicked.connect(partial(nxt_if_arm_init, 'event5'))
 
-        self.ui.btn_task1.clicked.connect(partial(nxt_if_arm_init, 'kinematics_grid'))
+        self.ui.btnUser9.setText("Kinematics Grid")
+        self.ui.btnUser9.clicked.connect(partial(nxt_if_arm_init, 'kinematics_grid'))
 
         # Sliders
         for sldr in self.joint_sliders:

@@ -101,10 +101,8 @@ class RXArm(InterbotixRobot):
         # max speed (arbitrarily set atm) radians/sec
         self.max_speed = 1.1
         
-        # self.gearbox_k = np.array([0.0, 0.01328, 0.0719, 0.0, 0.0])
-        # self.gearbox_k = np.array([0.0, 0.0118, 0.0632, 0.0, 0.0])
-        self.gearbox_k = np.array([0.0, 0.0272, 0.05388, 0.0, 0.0])
-
+        # self.gearbox_k = np.array([0.0, 0.0272, 0.05388, 0.0, 0.0])
+        self.gearbox_k = np.array([0.0, 0.0312, 0.058, 0.0, 0.0])
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
@@ -351,18 +349,17 @@ class RXArm(InterbotixRobot):
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
     
-    def pick_from_side(self, pos, size="l", x_offset=0):
+    def pick_from_side(self, pos, size="l", x_offset=0, offset_dist=50):
         if self.has_block:
             pos[2] += 30
         else:
-            pos[2] += 30
+            pos[2] += 20
         
         extra_reach = 15
         if size == 's':
             extra_reach = 15
         
         alpha = np.arctan2(pos[1],pos[0])
-        offset_dist = 50
         approach_point = np.array([pos[0] - offset_dist*np.cos(alpha) + x_offset, pos[1] - offset_dist*np.sin(alpha), pos[2] + 70])
         joint_angles_approach = kinematics.IK_from_side(self.dh_params, approach_point)
         self.set_move_time(joint_angles_approach)
@@ -394,22 +391,25 @@ class RXArm(InterbotixRobot):
         self.set_g_corrected_positions(joint_angles_approach)
         rospy.sleep(self.moving_time + self.wait_time)
 
-    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l", x_offset=0, z_offset=70):
+    def pick_block(self, pos_w, pos_c=None, block_info=None, theta=0, size="l", x_offset=0, z_offset=70, side_offset=70):
         print("pick position: " + str(pos_w))
         theta_options = [theta, 90+theta]
         theta_i = np.argmin(np.abs(theta_options))
         theta = theta_options[theta_i]
         # print(theta)
         try:
-            self.pick_from_top(pos_w, pos_c, block_info, theta, size=size, x_offset=x_offset, z_offset=z_offset)
+            self.pick_from_top(pos_w.copy(), pos_c, block_info, theta, size=size, x_offset=x_offset, z_offset=z_offset)
+            return "top"
         except:
-            self.pick_from_side(pos_w, size=size, x_offset=x_offset)
+            self.pick_from_side(pos_w.copy(), size=size, x_offset=x_offset, offset_dist=side_offset)
+            return "side"
 
     def move_to_pos(self, pos, theta=0, use_g_correction=True):
+        pos = np.array(pos)
         try:
-            joint_angles = kinematics.IK_from_top(self.dh_params, pos, theta=theta)
+            joint_angles = kinematics.IK_from_top(self.dh_params, pos.copy(), theta=theta*np.pi/180)
         except:
-            joint_angles = kinematics.IK_from_side(self.dh_params, pos)
+            joint_angles = kinematics.IK_from_side(self.dh_params, pos.copy())
         self.set_move_time(joint_angles)
         if use_g_correction:
             self.set_g_corrected_positions(joint_angles)
