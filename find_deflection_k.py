@@ -9,9 +9,9 @@ gearbox spring constants which minimize the position error
 from a dataset.
 '''
 
-dataset = 7
-th_data = np.load('theta_data{}.npy'.format(dataset)) # n x 5, each row is a set of theta values
-pose_data = np.load('pose_data{}.npy'.format(dataset)) # 4x4xn each 4x4 is a transformation matrix
+dataset = 9
+th_data = np.load('theta_data{}.npy'.format(dataset), allow_pickle=True) # n x 5, each row is a set of theta values
+pose_data = np.load('pose_data{}.npy'.format(dataset), allow_pickle=True) # 4x4xn each 4x4 is a transformation matrix
 
 dh_params = np.array([[0, -np.pi/2, 0.10391, 0],
                       [.20573, np.pi, 0, 0],

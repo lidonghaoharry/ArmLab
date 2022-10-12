@@ -102,7 +102,7 @@ class RXArm(InterbotixRobot):
         self.max_speed = 1.1
         
         # self.gearbox_k = np.array([0.0, 0.0272, 0.05388, 0.0, 0.0])
-        self.gearbox_k = np.array([0.0, 0.0312, 0.058, 0.0, 0.0])
+        self.gearbox_k = np.array([0.0, 0.0218, 0.0664, 0.0, 0.0])
 
         # end effector pose 
         self.ee_pose = [0.0 for i in range(6)]
@@ -406,6 +406,8 @@ class RXArm(InterbotixRobot):
 
     def move_to_pos(self, pos, theta=0, use_g_correction=True):
         pos = np.array(pos)
+        old_speed = self.max_speed
+        self.max_speed = 2.5
         try:
             joint_angles = kinematics.IK_from_top(self.dh_params, pos.copy(), theta=theta*np.pi/180)
         except:
@@ -416,6 +418,7 @@ class RXArm(InterbotixRobot):
         else:
             self.set_positions(joint_angles)
         rospy.sleep(self.moving_time + self.wait_time)
+        self.max_speed = old_speed
 
     def which_block(self, point, block_info, thresh=50):
         ret = -1 

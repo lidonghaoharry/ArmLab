@@ -68,13 +68,23 @@ class Camera():
         self.c_points = None
 
         # RGB colors
+        # self.colors = list((
+        #     {'id': 'red', 'color': (120, 0, 0)},
+        #     {'id': 'orange', 'color': (230,75,0)},
+        #     {'id': 'yellow', 'color': (205,205,0)},
+        #     {'id': 'green', 'color': (0, 200, 0)},
+        #     {'id': 'blue', 'color': (0,0,225)},
+        #     {'id': 'violet', 'color': (100,0,211)},
+        #     {'id': 'pink', 'color': (255,20,147)}))
+
+        # LAB colors
         self.colors = list((
-            {'id': 'red', 'color': (225, 0, 0)},
-            {'id': 'orange', 'color': (255,69,0)},
-            {'id': 'yellow', 'color': (204,204,0)},
-            {'id': 'green', 'color': (0, 200, 0)},
-            {'id': 'blue', 'color': (0,0,225)},
-            {'id': 'violet', 'color': (100,0,211)},
+            {'id': 'red', 'color': (0, 160, 140)},
+            {'id': 'orange', 'color': (0,160,160)},
+            {'id': 'yellow', 'color': (0,130,180)},
+            {'id': 'green', 'color': (0, 110, 140)},
+            {'id': 'blue', 'color': (0,130,100)},
+            {'id': 'violet', 'color': (0,140,110)},
             {'id': 'pink', 'color': (255,20,147)}))
 
         # self.colors = list((
@@ -248,15 +258,18 @@ class Camera():
     def retrieve_area_color(self, data, contour, labels):
         mask = np.zeros(data.shape[:2], dtype="uint8")
         cv2.drawContours(mask, [contour], -1, 255, -1)
+        
+        
         mean = cv2.mean(data, mask=mask)[:3]
         min_dist = (np.inf, None)
+        # print("-----------------------------------------------------------")
         # print("mean: " + str(mean))
         for label in labels:
-            # d = np.linalg.norm(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0] - np.array(mean))
-            # print("HSV: " + str(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_BGR2HSV)[0, 0]) + " d: " + str(d))
+            # d = np.linalg.norm(cv2.cvtColor(np.uint8(label["color"]), cv2.COLOR_RGB2LAB)[0, 0] - np.array(mean))
+            d = np.linalg.norm(label["color"][1:3] - np.array(mean)[1:3])
 
-            d = np.linalg.norm(label["color"] - np.array(mean))
-            # print("d: " + str(d))
+            # print("LAB: " + str(mean) + " d: " + str(d))
+            # print("d: " + str(d) + " id: " + str(label["id"]))
             if d < min_dist[0]:
                 min_dist = (d, label["id"])
         return min_dist[1] 
@@ -361,11 +374,12 @@ class Camera():
                 _, c, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 final_contours.extend(c)
 
-         # convert video frame from rgb to hsv
+         # convert video frame from rgb to lab
+        lab_im = cv2.cvtColor(self.VideoFrame, cv2.COLOR_RGB2LAB)
         added_ids = []
         for contour in final_contours:
             # color = self.retrieve_area_color(hsvImg, contour, self.colors)
-            color = self.retrieve_area_color(self.VideoFrame, contour, self.colors)
+            color = self.retrieve_area_color(lab_im, contour, self.colors)
             theta = cv2.minAreaRect(contour)[2]
             M = cv2.moments(contour)
 
